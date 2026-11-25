@@ -297,6 +297,22 @@ const FEATURE_ITEMS: FeatureCheckItem[] = [
     expected:
       'GUI上から settings.ini と関連JSON設定を安全に編集・バックアップ保存でき、保存直後に PhotoTools Master へ最新設定が反映されること。',
   },
+  {
+    id: 'master-18',
+    number: '18',
+    categoryKey: 'master',
+    categoryLabel: '1. PhotoTools Master',
+    title: '単独更新支援ツール（ZIP最新自動選択・GitHub取得・バックアップ・保護上書き・不要ファイル削除確認）',
+    targetFile: 'updater/PhotoToolsUpdater.ps1',
+    launchCommand: 'updater\\StartPhotoToolsUpdater.vbs をダブルクリック（別フォルダへ単体コピーしての実行も可）',
+    steps: [
+      'updater\\StartPhotoToolsUpdater.vbs をダブルクリックし、黒画面が出ずに更新支援GUIが起動することを確認します。',
+      'ZIP保存フォルダ・対象ファイル名（例: PhotoTools.zip）・更新先フォルダを指定し、「選択 (最新を自動選択)」で (1)(2) 等を含む最新ZIPが自動選択されること（または GitHub URL 入力後に「GitHubから最新ZIPを取得」でダウンロードされること）を確認します。',
+      '「指定フォルダへ更新を実行」を押し、backup\\ への事前退避、settings.ini の設定値維持（新規キーのみ追記）、data\\ 保護、ブロック解除、および不要ファイル確認ダイアログが正常に動作することを確認します。',
+    ],
+    expected:
+      '本体に依存せず単独で起動・更新でき、既存設定と履歴データを壊さずに最新ZIPの上書き・バックアップ・不要ファイル整理まで一括完了できること。',
+  },
 ];
 
 interface SetupStep {

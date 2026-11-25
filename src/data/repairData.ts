@@ -23,6 +23,20 @@ export interface RepairHistoryItem {
 
 export const REPAIR_HISTORY: RepairHistoryItem[] = [
   {
+    rev: 'REV-48',
+    phase: '単独起動の PhotoTools 自動更新支援ツール（PhotoToolsUpdater.ps1 / StartPhotoToolsUpdater.vbs）の新規実装',
+    target: 'ZIPダウンロード後の解凍・上書き・ブロック解除・不要ファイル整理を自動化する、本体非依存の単独更新支援 GUI ツールを新規作成。',
+    summary:
+      '① 完全自己完結型の WinForms GUI ツール updater/PhotoToolsUpdater.ps1 および黒画面ゼロ・ASCII専用ランチャー updater/StartPhotoToolsUpdater.vbs を新規実装（本体や common\\*.ps1 非依存のため別フォルダへ単体コピーしても動作）。② ブラウザ連番 (1)(2)... を同一ファイル名として認識し更新日時最新のZIPを自動選択する「選択」機能、GitHub リポジトリからの最新ブランチZIP自動取得（公開／PAT非公開両対応）、ZIP内パッケージルート自動判定（PhotoTools.zip / GitHub archive 両対応）、更新前の自動バックアップ（backup\\ 直近5世代保持）、settings.ini の既存値維持＋新規キー追記マージ／完全スキップ切替、data\\・backup\\・updater_settings.json 完全保護、自動ブロック解除（Unblock-File）、および不要ファイルのチェックボックス確認削除ダイアログを搭載。',
+    files: [
+      'updater/PhotoToolsUpdater.ps1',
+      'updater/StartPhotoToolsUpdater.vbs',
+      'src/components/VerificationChecklistTab.tsx',
+      'src/data/repairData.ts',
+    ],
+    status: '確認待ち',
+  },
+  {
     rev: 'REV-47',
     phase: '.NET 10（VB.NET）移行設計案の更新：ギガファイル便送信ツールの単独 EXE 分離',
     target: 'ギガファイル便送信を単独でも利用できるよう、PhotoTools 本体（PhotoTools.exe）とは独立した実行プロジェクト（PhotoTools.GigaFile → GigaFileUploader.exe）へ分離する設計へ改訂。',
