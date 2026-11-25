@@ -1,0 +1,6 @@
+{
+  "name": "PhotoTools 修復・配布スタジオ",
+  "description": "D:\\PhotoTools\\ PowerShell写真管理システムの不具合修復パッケージ配布・設定カスタマイズ・コード検証ツール",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

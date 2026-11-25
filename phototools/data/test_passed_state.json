@@ -1,0 +1,11 @@
+﻿{
+  "LogHelper": false,
+  "ConfigHelper": false,
+  "PhotoInfoHelper": false,
+  "SceneHelper": false,
+  "XHelper": false,
+  "ExcelHelper": false,
+  "WorkflowHelpers": false,
+  "PhotoInfoEditor": false,
+  "GigaFileHelper": false
+}
