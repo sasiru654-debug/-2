@@ -57,7 +57,7 @@ export default function RepairReportTab({ totalFiles, onSelectFile, onOpenSpec }
             <span className="text-2xl font-bold text-emerald-700 tabular-nums">100%</span>
             <span className="text-xs text-slate-500">CRLF統一</span>
           </div>
-          <div className="mt-1 text-xs text-slate-600">.bat=CP932 / .ps1,.ini,.json=UTF-8 BOM</div>
+          <div className="mt-1 text-xs text-slate-600">.bat=CP932 / .ps1,.ini,.json=UTF-8 BOM / .vbs=ASCII</div>
         </div>
 
         <div className="bg-white p-5">
@@ -67,7 +67,7 @@ export default function RepairReportTab({ totalFiles, onSelectFile, onOpenSpec }
             <span className="text-xs text-slate-500">モジュール</span>
           </div>
           <div className="mt-1 text-xs text-slate-600">
-            全{TEST_MODULES.length}モジュール構成・最新 {REPAIR_HISTORY[0]?.rev ?? 'REV-45'} まで反映済
+            全{TEST_MODULES.length}モジュール構成・最新 {REPAIR_HISTORY[0]?.rev ?? 'REV-51'} まで反映済
           </div>
         </div>
       </div>
@@ -78,7 +78,7 @@ export default function RepairReportTab({ totalFiles, onSelectFile, onOpenSpec }
             <BookOpen className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
             <div>
               <span className="font-bold">
-                全体詳細仕様・図解を公開中（最新 {REPAIR_HISTORY[0]?.rev ?? 'REV-45'} 反映済）：
+                全体詳細仕様・図解を公開中（最新 {REPAIR_HISTORY[0]?.rev ?? 'REV-51'} 反映済）：
               </span>
               <span className="text-emerald-900">
                 ツール関係性フローチャート・起動分岐・Step1〜5データフロー・フォルダ階層・各モジュール仕様を確認できます。

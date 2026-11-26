@@ -140,6 +140,49 @@ if ($ValidPaths.Count -eq 0) {
 # ==================================================
 # 自動命名ZIP生成ロジック（写真情報.txt / フォルダ名連動）
 # ==================================================
+function Repair-PhotoInfoXFormatIfNeeded {
+    param([string]$FilePath)
+    if ([string]::IsNullOrWhiteSpace($FilePath) -or -not (Test-Path -LiteralPath $FilePath)) { return }
+    try {
+        $raw = [System.IO.File]::ReadAllText($FilePath, [System.Text.Encoding]::UTF8)
+        if ([string]::IsNullOrWhiteSpace($raw) -or -not $raw.Contains("【")) { return }
+        $lines = $raw -split "`r?`n"
+        $outLines = New-Object System.Collections.ArrayList
+        $changed = $false
+        for ($i = 0; $i -lt $lines.Length; $i++) {
+            $ln = $lines[$i]
+            $tr = $ln.Trim()
+            if ($tr.StartsWith("【X】")) {
+                $val = $tr.Substring(3).Trim()
+                $nextIsXUrl = (($i + 1) -lt $lines.Length) -and ($lines[$i + 1].Trim().StartsWith("【X_URL】"))
+                if ($val -match '(?i)(?:https?://)?(?:x\.com|twitter\.com)/([A-Za-z0-9_]+)') {
+                    $acc = "@" + $Matches[1]
+                    $url = "https://x.com/" + $Matches[1]
+                    [void]$outLines.Add("【X】$acc")
+                    if ($nextIsXUrl) {
+                        $i++
+                    }
+                    [void]$outLines.Add("【X_URL】$url")
+                    $changed = $true
+                    continue
+                } elseif (-not $nextIsXUrl) {
+                    $acc = if ([string]::IsNullOrWhiteSpace($val)) { "" } else { "@" + $val.TrimStart('@', '＠') }
+                    $url = if ([string]::IsNullOrWhiteSpace($acc)) { "" } else { "https://x.com/" + $acc.TrimStart('@') }
+                    [void]$outLines.Add("【X】$acc")
+                    [void]$outLines.Add("【X_URL】$url")
+                    $changed = $true
+                    continue
+                }
+            }
+            [void]$outLines.Add($ln)
+        }
+        if ($changed) {
+            $updated = ($outLines -join "`r`n")
+            [System.IO.File]::WriteAllText($FilePath, $updated, (New-Object System.Text.UTF8Encoding($true)))
+        }
+    } catch {}
+}
+
 function Get-AutoZipSuggestedName {
     param([string]$TargetPath)
     if ([string]::IsNullOrWhiteSpace($TargetPath)) { return "PhotoArchive.zip" }
@@ -164,6 +207,7 @@ function Get-AutoZipSuggestedName {
 
     if (-not [string]::IsNullOrWhiteSpace($infoTxtPath)) {
         try {
+            Repair-PhotoInfoXFormatIfNeeded -FilePath $infoTxtPath
             $raw = [System.IO.File]::ReadAllText($infoTxtPath, [System.Text.Encoding]::UTF8)
             foreach ($line in ($raw -split "`r?`n")) {
                 $trim = $line.Trim()
@@ -678,6 +722,21 @@ $BtnCopyDelKey.Size = New-Object System.Drawing.Size(120, 27)
 $BtnCopyDelKey.Enabled = $false
 $GrpResult.Controls.Add($BtnCopyDelKey)
 
+$BtnCreateMessage = New-Object System.Windows.Forms.Button
+$BtnCreateMessage.Text = "送付メッセージ作成"
+$BtnCreateMessage.Location = New-Object System.Drawing.Point(362, 60)
+$BtnCreateMessage.Size = New-Object System.Drawing.Size(188, 27)
+$BtnCreateMessage.BackColor = [System.Drawing.Color]::FromArgb(15, 118, 110)
+$BtnCreateMessage.ForeColor = [System.Drawing.Color]::White
+$BtnCreateMessage.FlatStyle = "Flat"
+$BtnCreateMessage.Font = New-Object System.Drawing.Font("Yu Gothic UI", 9, [System.Drawing.FontStyle]::Bold)
+$BtnCreateMessage.Enabled = $false
+$GrpResult.Controls.Add($BtnCreateMessage)
+
+$script:LastUploadedResults = @()
+$script:LastDlPassword = ""
+$script:LastExpiryDate = ""
+
 # --- 最下部フッター操作行 ---
 $BtnOpenHistory = New-Object System.Windows.Forms.Button
 $BtnOpenHistory.Text = "履歴フォルダを開く"
@@ -737,6 +796,44 @@ $BtnCopyDelKey.Add_Click({
     if (-not [string]::IsNullOrWhiteSpace($TxtDelKey.Text)) {
         [System.Windows.Forms.Clipboard]::SetText($TxtDelKey.Text)
         Set-UiStatus "削除キーをクリップボードにコピーしました。"
+    }
+})
+
+$BtnCreateMessage.Add_Click({
+    $parentRoot = if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) { Split-Path -Parent $PSScriptRoot } else { "D:\PhotoTools" }
+    $composerScript = Join-Path $parentRoot "editor\MessageComposerDialog.ps1"
+    if (-not (Test-Path -LiteralPath $composerScript)) {
+        $fallbackComposer = "D:\PhotoTools\editor\MessageComposerDialog.ps1"
+        if (Test-Path -LiteralPath $fallbackComposer) {
+            $composerScript = $fallbackComposer
+            $parentRoot = "D:\PhotoTools"
+        } else {
+            [System.Windows.Forms.MessageBox]::Show($Form, "メッセージ作成画面（MessageComposerDialog.ps1）が見つかりません。`nPhotoTools 本体と同じフォルダ構成で実行してください。", "確認", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+            return
+        }
+    }
+    try {
+        . $composerScript
+        $upFolders = New-Object System.Collections.Generic.List[string]
+        foreach ($ur in @($script:LastUploadedResults)) {
+            $fp = if ($null -ne $ur -and -not [string]::IsNullOrWhiteSpace([string]$ur.FolderPath)) { [string]$ur.FolderPath } else { "" }
+            if (-not [string]::IsNullOrWhiteSpace($fp) -and (Test-Path -LiteralPath $fp -PathType Container) -and -not $upFolders.Contains($fp)) {
+                [void]$upFolders.Add($fp)
+            }
+        }
+        $firstUrl = if (@($script:LastUploadedResults).Count -gt 0) { [string]$script:LastUploadedResults[0].Url } else { $TxtResultUrl.Text.Trim() }
+        $modeUse = if ($upFolders.Count -gt 1) { "Combined" } else { "Single" }
+        [void](Show-MessageComposerDialog `
+            -FolderPaths @($upFolders.ToArray()) `
+            -Mode $modeUse `
+            -PreferredLinkType "GigaFile" `
+            -OverrideGigaUrl $firstUrl `
+            -OverrideDlPassword $script:LastDlPassword `
+            -OverrideExpiryDate $script:LastExpiryDate `
+            -RootDir $parentRoot `
+            -OwnerForm $Form)
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show($Form, "メッセージ作成画面の起動に失敗しました:`n$($_.Exception.Message)", "エラー", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error) | Out-Null
     }
 })
 
@@ -876,13 +973,14 @@ $BtnStart.Add_Click({
         # 履歴および一括リスト保存
         Set-UiStatus "履歴ファイルおよびURLリストを保存中..." 97
         $nowDisp = (Get-Date).ToString("yyyy/MM/dd HH:mm:ss")
+        $expiryDateText = (Get-Date).AddDays($lifetimeDays).ToString("yyyy/MM/dd") + "まで"
         $passDisp = if ([string]::IsNullOrWhiteSpace($dlPass)) { "なし" } else { $dlPass }
 
         $hsb = New-Object System.Text.StringBuilder
         [void]$hsb.AppendLine("==================================================")
         [void]$hsb.AppendLine("ギガファイル便 アップロード結果一覧")
         [void]$hsb.AppendLine("アップロード日時：$nowDisp")
-        [void]$hsb.AppendLine("保持期限：${lifetimeDays}日 / DLパスワード：$passDisp")
+        [void]$hsb.AppendLine("保持期限：${expiryDateText}（${lifetimeDays}日） / DLパスワード：$passDisp")
         [void]$hsb.AppendLine("==================================================")
         [void]$hsb.AppendLine("")
 
@@ -892,13 +990,36 @@ $BtnStart.Add_Click({
             [void]$hsb.AppendLine("削除キー：$($ur.DelKey)")
             [void]$hsb.AppendLine("--------------------------------------------------")
 
-            # 写真情報.txt がある場合はURLを自動記録し送付済みへ更新
+            # 写真情報.txt がある場合はURL・DLパスワード・保持期限を自動記録し送付済みへ更新
             $infoTxt = Join-Path $ur.FolderPath "写真情報.txt"
             if (Test-Path -LiteralPath $infoTxt) {
                 try {
+                    Repair-PhotoInfoXFormatIfNeeded -FilePath $infoTxt
                     $infoContent = [System.IO.File]::ReadAllText($infoTxt, [System.Text.Encoding]::UTF8)
-                    $infoContent = $infoContent -replace '【ギガファイル便URL】.*', "【ギガファイル便URL】$($ur.Url)"
-                    $infoContent = $infoContent -replace '【データ送付状況】.*', "【データ送付状況】送付済"
+                    if ($infoContent -match '【ギガファイル便URL】.*') {
+                        $infoContent = $infoContent -replace '【ギガファイル便URL】.*', "【ギガファイル便URL】$($ur.Url)"
+                    } elseif ($infoContent -match '【ギガファイル便リンク】.*') {
+                        $infoContent = $infoContent -replace '【ギガファイル便リンク】.*', "【ギガファイル便リンク】$($ur.Url)"
+                    } elseif ($infoContent -match '【ギガファイë便リンク】.*') {
+                        $infoContent = $infoContent -replace '【ギガファイë便リンク】.*', "【ギガファイë便リンク】$($ur.Url)"
+                    }
+                    if ($infoContent -match '【データ送付状況】.*') {
+                        $infoContent = $infoContent -replace '【データ送付状況】.*', "【データ送付状況】送付済み"
+                    }
+                    if (-not [string]::IsNullOrWhiteSpace($dlPass)) {
+                        if ($infoContent -match '【DLパスワード】.*') {
+                            $infoContent = $infoContent -replace '【DLパスワード】.*', "【DLパスワード】$dlPass"
+                        } elseif ($infoContent -match '(?m)^(【データ送付状況】[^\r\n]*)') {
+                            $infoContent = [regex]::Replace($infoContent, '(?m)^(【データ送付状況】[^\r\n]*)', "`$1`r`n【DLパスワード】$dlPass", 1)
+                        }
+                    }
+                    if ($infoContent -match '【保持期限】.*') {
+                        $infoContent = $infoContent -replace '【保持期限】.*', "【保持期限】$expiryDateText"
+                    } elseif ($infoContent -match '(?m)^(【DLパスワード】[^\r\n]*)') {
+                        $infoContent = [regex]::Replace($infoContent, '(?m)^(【DLパスワード】[^\r\n]*)', "`$1`r`n【保持期限】$expiryDateText", 1)
+                    } elseif ($infoContent -match '(?m)^(【データ送付状況】[^\r\n]*)') {
+                        $infoContent = [regex]::Replace($infoContent, '(?m)^(【データ送付状況】[^\r\n]*)', "`$1`r`n【保持期限】$expiryDateText", 1)
+                    }
                     [System.IO.File]::WriteAllText($infoTxt, $infoContent, (New-Object System.Text.UTF8Encoding($true)))
                 } catch {}
             }
@@ -909,6 +1030,10 @@ $BtnStart.Add_Click({
         $utf8Bom = New-Object System.Text.UTF8Encoding($true)
         [System.IO.File]::WriteAllText($histFilePath, $hsb.ToString(), $utf8Bom)
 
+        $script:LastUploadedResults = @($uploadedResults)
+        $script:LastDlPassword = $dlPass
+        $script:LastExpiryDate = $expiryDateText
+
         if (-not [string]::IsNullOrWhiteSpace($CallbackResultFile) -and $uploadedResults.Count -gt 0) {
             try {
                 $cbObj = [ordered]@{
@@ -916,6 +1041,7 @@ $BtnStart.Add_Click({
                     DelKey       = $uploadedResults[0].DelKey
                     Password     = $dlPass
                     LifetimeDays = $lifetimeDays
+                    ExpiryDate   = $expiryDateText
                     Files        = @($uploadedResults | ForEach-Object { $_.TargetName })
                     UploadedAt   = $nowDisp
                 }
@@ -931,15 +1057,16 @@ $BtnStart.Add_Click({
             $TxtResultUrl.Text = $uploadedResults[0].Url
             $TxtDelKey.Text = $uploadedResults[0].DelKey
         } else {
-            $TxtResultUrl.Text = "（一括出力: $($_uploadedResults.Count)件のURLをクリップボードにコピーしました）"
+            $TxtResultUrl.Text = "（一括出力: $($uploadedResults.Count)件のURLをクリップボードにコピーしました）"
             $TxtDelKey.Text = "一括出力完了"
         }
         $BtnCopyUrl.Enabled = $true
         $BtnOpenUrl.Enabled = $true
         $BtnCopyDelKey.Enabled = $true
+        $BtnCreateMessage.Enabled = $true
 
-        Set-UiStatus "アップロード完了！（全URL一覧をクリップボードへコピーしました）" 100
-        Append-UiLog "すべての処理が正常に完了しました！（全 $($uploadedResults.Count) 件）"
+        Set-UiStatus "アップロード完了！（保持期限: $expiryDateText / 全URL一覧をクリップボードへコピーしました）" 100
+        Append-UiLog "すべての処理が正常に完了しました！（全 $($uploadedResults.Count) 件 / 保持期限: $expiryDateText）"
 
         Start-Process "notepad.exe" -ArgumentList "`"$histFilePath`""
 

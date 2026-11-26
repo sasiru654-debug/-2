@@ -513,6 +513,10 @@ function Sync-RecordsToExcelLedger {
             $idx = 1
             foreach ($p in @($persons)) {
                 $pX = Get-ExcelRecVal $p "XAccount"
+                $pXUrl = Get-ExcelRecVal $p "XUrl"
+                if ([string]::IsNullOrWhiteSpace($pXUrl) -and -not [string]::IsNullOrWhiteSpace($pX)) {
+                    $pXUrl = "https://x.com/" + $pX.TrimStart('@')
+                }
                 $pCom = Get-ExcelRecVal $p "Comment"
                 if ([string]::IsNullOrWhiteSpace($pCom)) {
                     $pCom = Get-ExcelRecVal $item "Notes" (Get-ExcelRecVal $item "Comment")
@@ -524,7 +528,7 @@ function Sync-RecordsToExcelLedger {
                     CostumeOrChar = Get-ExcelRecVal $p "CostumeOrChar" (Get-ExcelRecVal $item "CostumeOrChar")
                     Name          = Get-ExcelRecVal $p "Name"
                     XAccount      = $pX
-                    XUrl          = if ([string]::IsNullOrWhiteSpace($pX)) { "" } else { "https://x.com/" + $pX.TrimStart('@') }
+                    XUrl          = $pXUrl
                     MultiFolder   = Get-ExcelRecVal $item "MultiFolder"
                     SentStatus    = Get-ExcelRecVal $item "SentStatus"
                     Comment       = $pCom

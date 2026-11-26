@@ -16,7 +16,7 @@ export type VerificationStatus = 'pending' | 'passed' | 'issue';
 interface FeatureCheckItem {
   id: string;
   number: string;
-  categoryKey: 'master' | 'async' | 'sync' | 'giga';
+  categoryKey: 'master' | 'async' | 'sync' | 'giga' | 'msg' | 'ai';
   categoryLabel: string;
   title: string;
   targetFile: string;
@@ -255,15 +255,16 @@ const FEATURE_ITEMS: FeatureCheckItem[] = [
     number: '15',
     categoryKey: 'giga',
     categoryLabel: '4. ギガファイル便拡張',
-    title: 'アップロード完了後の URL 自動記録 ＆「送付済み」ステータス更新',
+    title: 'アップロード完了後の URL・DLパスワード・保持期限自動記録 ＆「送付済み」更新',
     targetFile: 'gigafile/send_to_gigafile.ps1',
-    launchCommand: 'アップロード完了後に対象フォルダの 写真情報.txt / DailyWorkflow ツリーを確認',
+    launchCommand: 'アップロード完了後に対象フォルダの 写真情報.txt / 完了画面を確認',
     steps: [
-      'PhotoInfoEditor・DailyWorkflow・または子フォルダ一括モードからアップロードを完了させます。',
-      '対象子フォルダ内の 写真情報.txt を開き、【ギガファイル便URL】と【データ送付状況】を確認します。',
+      'PhotoInfoEditor・DailyWorkflow・または子フォルダ一括モードから保持期限・DLパスワード（任意）を設定してアップロードを完了させます。',
+      '対象子フォルダ内の 写真情報.txt を開き、【ギガファイル便URL】【DLパスワード】【保持期限】（yyyy/MM/ddまで）と【データ送付状況】を確認します。',
+      '完了画面に「送付メッセージ作成」ボタンが表示され、押下するとURL・パスワード・保持期限を引き継いだメッセージ作成画面が開くことを確認します。',
     ],
     expected:
-      '発行されたURLが 写真情報.txt に自動記録され、送付状況が自動的に「送付済 / 送付済み」へ更新されること。',
+      '発行されたURL・DLパスワード（設定時）・保持期限が 写真情報.txt へ自動記録され、送付状況が「送付済み」へ更新されること。また完了画面からそのまま送付メッセージ作成画面へ遷移できること。',
   },
   {
     id: 'sync-16',
@@ -286,16 +287,17 @@ const FEATURE_ITEMS: FeatureCheckItem[] = [
     number: '17',
     categoryKey: 'master',
     categoryLabel: '1. PhotoTools Master',
-    title: 'Master からの設定編集画面（settings.ini・履歴JSON編集／パス存在チェック／即時反映）',
+    title: 'Master からの設定編集画面（settings.ini・履歴JSON・定型文・AIキャラ判定5タブ／即時反映）',
     targetFile: 'editor/SettingsEditor.ps1',
     launchCommand: 'PhotoToolsMaster 右上「設定編集 (settings.ini 等)」ボタン',
     steps: [
       'StartPhotoToolsMaster.bat を起動し、ヘッダー右上の「設定編集 (settings.ini 等)」ボタンを押します。',
-      '「フォルダ・パス設定」タブで「参照...」や「パス存在チェック」を確認し、「期分け・拡張子・MEGA」タブおよび「関連ファイル編集・OS登録」タブ（scene_history.json / x_history.json 編集と形式チェック）を確認します。',
-      '任意の項目を変更して「settings.ini を保存して反映」を押し、settings.ini.bak の自動作成と Master 側の即時再読込を確認します。',
+      '5つのタブ（「フォルダ・パス設定」「期分け・拡張子・MEGA」「関連ファイル編集・OS登録」「メッセージ定型文」「AIキャラ判定」）がすべて正常に表示されることを確認します。',
+      '「メッセージ定型文」タブで変数挿入・MEGA共通コメント5種が保存でき、「AIキャラ判定」タブでAPIキーのDPAPI暗号化保存・Google Cloud有料枠確認チェック・0トークン接続テスト・AI設定保存が機能することを確認します。',
+      '「settings.ini を保存して反映」で settings.ini.bak の自動作成と Master 側の即時再読込を確認します。',
     ],
     expected:
-      'GUI上から settings.ini と関連JSON設定を安全に編集・バックアップ保存でき、保存直後に PhotoTools Master へ最新設定が反映されること。',
+      'GUI上から settings.ini・関連JSON・message_templates.json・ai_character_settings.json・DPAPI暗号化キーを安全に編集・保存でき、保存直後に反映されること。',
   },
   {
     id: 'master-18',
@@ -308,10 +310,75 @@ const FEATURE_ITEMS: FeatureCheckItem[] = [
     steps: [
       'updater\\StartPhotoToolsUpdater.vbs をダブルクリックし、黒画面が出ずに更新支援GUIが起動することを確認します。',
       'ZIP保存フォルダ・対象ファイル名（例: PhotoTools.zip）・更新先フォルダを指定し、「選択 (最新を自動選択)」で (1)(2) 等を含む最新ZIPが自動選択されること（または GitHub URL 入力後に「GitHubから最新ZIPを取得」でダウンロードされること）を確認します。',
-      '「指定フォルダへ更新を実行」を押し、backup\\ への事前退避、settings.ini の設定値維持（新規キーのみ追記）、data\\ 保護、ブロック解除、および不要ファイル確認ダイアログが正常に動作することを確認します。',
+      '「指定フォルダへ更新を実行」を押し、backup\\ への事前退避、settings.ini の設定値維持（新規キーのみ追記）、data\\（message_templates.json 等含む）保護、ブロック解除、および不要ファイル確認ダイアログが正常に動作することを確認します。',
     ],
     expected:
-      '本体に依存せず単独で起動・更新でき、既存設定と履歴データを壊さずに最新ZIPの上書き・バックアップ・不要ファイル整理まで一括完了できること。',
+      '本体に依存せず単独で起動・更新でき、既存設定・履歴・定型文データを壊さずに最新ZIPの上書き・バックアップ・不要ファイル整理まで一括完了できること。',
+  },
+  {
+    id: 'sync-19',
+    number: '19',
+    categoryKey: 'sync',
+    categoryLabel: '3. 子フォルダ名同期',
+    title: '写真情報.txt の【X】（アカウント名）と【X_URL】（URL）分離 ＆ 既存データ自動修正',
+    targetFile: 'common/PhotoInfoHelper.ps1',
+    launchCommand: 'PhotoInfoEditor で新規保存、または既存の 写真情報.txt があるフォルダへ DailyWorkflow / PhotoInfoEditor / SyncExcel でアクセス',
+    steps: [
+      'PhotoInfoEditor でXアカウント（例: @sample_user または https://x.com/sample_user）を入力して保存し、作成された 写真情報.txt を開きます。',
+      '【X】に @sample_user、新設された【X_URL】に https://x.com/sample_user が記録されていることを確認します。',
+      '既に作成済みの【X】https://x.com/... 形式の 写真情報.txt があるフォルダを DailyWorkflow や PhotoInfoEditor（または SyncExcelFromTxt）で開き、ファイル内容が自動的に【X】アカウント名＋【X_URL】URL 形式へ書き換わっていることを確認します。',
+    ],
+    expected:
+      '新規保存時は【X】にアカウント名・【X_URL】にURLが記載され、既存の旧形式データもアクセス時に元の最終更新日時を維持したまま自動修正されること。',
+  },
+  {
+    id: 'msg-20',
+    number: '20',
+    categoryKey: 'msg',
+    categoryLabel: '5. 送付メッセージ作成',
+    title: '送付メッセージ作成（単体／まとめ起動・初期空欄・ギガ/MEGA切替・複数人/共演者表記）',
+    targetFile: 'editor/MessageComposerDialog.ps1',
+    launchCommand: 'PhotoInfoEditor「メッセージ作成」 / DailyWorkflow「メッセージ作成(まとめ可)」 / ギガファイル便完了後ボタン',
+    steps: [
+      'SettingsEditor「メッセージ定型文」タブで撮影区分（イベント／個撮／併せ等）に紐づく定型文を1件以上登録します。',
+      'PhotoInfoEditor または DailyWorkflow（同一モデルの複数フォルダがある日）からメッセージ作成画面を開き、初期状態の本文欄が空欄のまま開くことを確認します。',
+      '「ギガファイル便」または「MEGA」ラジオボタンを選び（MEGA時は画面上で共通コメント種別も切替可）、「メッセージを作成」を押します。',
+      '複数リンク／複数人フォルダ選択時に「個撮リンク１」「複数リンク１＋次行に名前（キャラ名）（3名以上は、区切り）」、ギガファイル便のDLパスワード（入力時のみ）・保持期間（yyyy/MM/ddまで）が正しく整形されることを確認します。',
+    ],
+    expected:
+      '初期表示では自動生成やMEGA通信を行わず、「メッセージを作成」押下時のみ選択方式に応じたメッセージが仕様通りの書式で生成されること。',
+  },
+  {
+    id: 'msg-21',
+    number: '21',
+    categoryKey: 'msg',
+    categoryLabel: '5. 送付メッセージ作成',
+    title: 'MEGA未取得確認→取得書き戻し ＆ コピー後の「送付済み」一括更新連動',
+    targetFile: 'editor/MessageComposerDialog.ps1',
+    launchCommand: 'メッセージ作成画面 → MEGA選択「メッセージを作成」 →「クリップボードにコピー」',
+    steps: [
+      'MEGAリンク未取得のフォルダをチェックした状態で「MEGA」を選択し、「メッセージを作成」を押します。',
+      '未取得フォルダ一覧付きの確認ダイアログ（はい：取得して作成／いいえ：取得せず作成／キャンセル）が表示され、「はい」で MegaHelper 経由の取得＋写真情報.txt＆Excel台帳への自動書き戻しが行われることを確認します。',
+      '「コピー後にステータスを『送付済み』へ更新する」（初期ON）にチェックが入った状態で「クリップボードにコピー」を押し、対象フォルダの 写真情報.txt（ペア含む）および Excel台帳が「送付済み」へ更新されることを確認します。',
+    ],
+    expected:
+      'MEGA未取得時のみ安全に確認取得でき、コピー操作と連動してチェック済みフォルダの送付ステータスが 写真情報.txt・Excel台帳・呼び出し元画面へ即座に反映されること。',
+  },
+  {
+    id: 'ai-22',
+    number: '22',
+    categoryKey: 'ai',
+    categoryLabel: '6. AIキャラ判定',
+    title: '写真からAIキャラクター名検索（顔マスク・未設定警告・Exif除去縮小・DPAPI・キャラ名（作品名）反映）',
+    targetFile: 'editor/CharacterLookupDialog.ps1',
+    launchCommand: 'PhotoInfoEditor「写真からキャラ検索」 / SettingsEditor「AIキャラ判定」タブ',
+    steps: [
+      'SettingsEditor の「AIキャラ判定」タブで Google Cloud 請求先アカウント紐付け済み APIキーを保存（data\\gemini_api_key.dat にDPAPI暗号化保存・平文非保存）し、有料枠（学習不使用）確認チェックをONにして接続テストを実行します。',
+      'PhotoInfoEditor で衣装・キャラ欄横の「写真からキャラ検索」ボタンを押し、フォルダ内写真を選択してマウスドラッグで顔・背景マスク（黒塗り／モザイク・1つ戻す・全消去）が適用できることを確認します。',
+      'マスク0箇所のまま「この画像でAI検索」を押した際に未設定の確認警告ダイアログが表示されること、および検索後に候補一覧（確度・根拠付き）から既定書式「キャラ名（作品名）」（ほか2書式へ切替可）で衣装・キャラ欄へ反映されることを確認します。',
+    ],
+    expected:
+      'Exif/メタデータ完全除去＋長辺縮小（メモリ上処理・一時ファイル非生成）・個人情報未送信の6層漏洩対策のもとで安全にキャラ候補を取得でき、選択候補が「キャラ名（作品名）」形式で衣装・キャラ欄へ反映されること。',
   },
 ];
 
@@ -325,30 +392,31 @@ interface SetupStep {
 const SETUP_STEPS: SetupStep[] = [
   {
     step: '01',
-    title: '既存フォルダのバックアップと修復版ZIPの上書き展開',
+    title: '修復版ZIPの取得と更新適用（単独更新支援ツール推奨）',
+    command: 'D:\\PhotoTools\\updater\\StartPhotoToolsUpdater.vbs',
     detail:
-      '右上の「修復版ZIPをダウンロード」から最新ZIPを取得し、既存の D:\\PhotoTools\\ をバックアップした上で D:\\PhotoTools\\ へ上書き展開してください。',
+      '右上の「修復版ZIPをダウンロード」から最新ZIPを取得します。初回は D:\\PhotoTools\\ へ手動展開し、2回目以降の更新は単独更新支援ツール（StartPhotoToolsUpdater.vbs）を使うと、事前バックアップ・settings.ini／data\\（履歴・定型文）保護・ブロック解除・不要ファイル整理まで一括実行できます。',
   },
   {
     step: '02',
-    title: 'Windows インターネットブロック（Zone.Identifier）の一括解除',
+    title: 'Windows インターネットブロック（Zone.Identifier）の一括解除（手動展開時）',
     command: 'D:\\PhotoTools\\UnblockFiles.bat',
     detail:
-      'ダウンロードしたZIP内の .ps1 が SmartScreen 等にブロックされないよう、展開直後に UnblockFiles.bat を1回実行してください。',
+      '手動でZIP展開した場合は、.ps1 が SmartScreen 等にブロックされないよう展開直後に UnblockFiles.bat を1回実行してください（単独更新支援ツール使用時は自動実行されます）。',
   },
   {
     step: '03',
-    title: '自動モジュールテスト（01〜10）の一括検証',
+    title: '自動モジュールテスト（01〜12）の一括検証',
     command: 'D:\\PhotoTools\\RunTestManager.bat',
     detail:
-      '本番データや台帳を汚さない一時サンドボックス上で 01. LogHelper 〜 10. PhotoToolsMaster の構文・単体テストを一括検証できます。',
+      '本番データや台帳を汚さない一時サンドボックス上で 01. LogHelper 〜 12. GeminiCharacterHelper の構文・単体テストを一括検証できます。',
   },
   {
     step: '04',
     title: '右クリックメニュー・URLプロトコル・SendTo 連携の登録（初回のみ）',
     command: 'RegisterContextMenu.bat / RegisterProtocol.bat / gigafile\\install_gigafile_sendto.bat',
     detail:
-      'フォルダパスを変更した場合や初回導入時は、各登録バッチを実行すると %~dp0 基準で現在の配置先へ自動登録されます。',
+      'フォルダパスを変更した場合や初回導入時は、各登録バッチ（または SettingsEditor のOS登録タブ）を実行すると %~dp0 基準で現在の配置先へ自動登録されます。',
   },
 ];
 
@@ -436,7 +504,15 @@ export default function VerificationChecklistTab({ onSelectFile }: VerificationC
     }
     const total = FEATURE_ITEMS.length;
     const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
-    return { total, passed, issue, pending, withMemo, pct };
+    const byCategory = {
+      master: FEATURE_ITEMS.filter((i) => i.categoryKey === 'master').length,
+      async: FEATURE_ITEMS.filter((i) => i.categoryKey === 'async').length,
+      sync: FEATURE_ITEMS.filter((i) => i.categoryKey === 'sync').length,
+      giga: FEATURE_ITEMS.filter((i) => i.categoryKey === 'giga').length,
+      msg: FEATURE_ITEMS.filter((i) => i.categoryKey === 'msg').length,
+      ai: FEATURE_ITEMS.filter((i) => i.categoryKey === 'ai').length,
+    };
+    return { total, passed, issue, pending, withMemo, pct, byCategory };
   }, [records]);
 
   const filteredItems = useMemo(() => {
@@ -513,7 +589,7 @@ export default function VerificationChecklistTab({ onSelectFile }: VerificationC
               PhotoTools Master & 拡張ロードマップ機能 動作確認シート
             </h1>
             <p className="text-xs text-slate-600">
-              追加実装した全15機能を1つずつ実機で確認し、判定ステータスと気づき・エラー内容をメモできます（ブラウザに自動保存されます）。
+              実装済みの全{stats.total}機能を1つずつ実機で確認し、判定ステータスと気づき・エラー内容をメモできます（ブラウザに自動保存されます）。
             </p>
           </div>
 
@@ -527,7 +603,7 @@ export default function VerificationChecklistTab({ onSelectFile }: VerificationC
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              追加機能チェック・メモ (15項目)
+              追加機能チェック・メモ ({stats.total}項目)
             </button>
             <button
               type="button"
@@ -630,11 +706,13 @@ export default function VerificationChecklistTab({ onSelectFile }: VerificationC
               <div className="flex flex-wrap items-center gap-1">
                 {(
                   [
-                    { id: 'all', label: '全カテゴリ (15)' },
-                    { id: 'master', label: '1. PhotoTools Master (5)' },
-                    { id: 'async', label: '2. 非同期・MEGAログ (3)' },
-                    { id: 'sync', label: '3. 子フォルダ名同期 (3)' },
-                    { id: 'giga', label: '4. ギガファイル便拡張 (4)' },
+                    { id: 'all', label: `全カテゴリ (${stats.total})` },
+                    { id: 'master', label: `1. Master・設定・更新 (${stats.byCategory.master})` },
+                    { id: 'async', label: `2. 非同期・MEGAログ (${stats.byCategory.async})` },
+                    { id: 'sync', label: `3. フォルダ同期・X分離 (${stats.byCategory.sync})` },
+                    { id: 'giga', label: `4. ギガファイル便 (${stats.byCategory.giga})` },
+                    { id: 'msg', label: `5. 送付メッセージ (${stats.byCategory.msg})` },
+                    { id: 'ai', label: `6. AIキャラ判定 (${stats.byCategory.ai})` },
                   ] as const
                 ).map((cat) => (
                   <button
@@ -827,7 +905,7 @@ export default function VerificationChecklistTab({ onSelectFile }: VerificationC
           <div className="px-5 py-4 border-b border-slate-200">
             <h2 className="text-sm font-bold text-slate-900">Windows 実機への展開・初期セットアップ手順</h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              最新ZIPをダウンロード後、以下の手順で D:\PhotoTools\ へ展開してから全15項目の動作確認を行ってください。
+              最新ZIPをダウンロード後、以下の手順で D:\PhotoTools\ へ展開・更新してから全{stats.total}項目の動作確認を行ってください。
             </p>
           </div>
           <div className="divide-y divide-slate-200">

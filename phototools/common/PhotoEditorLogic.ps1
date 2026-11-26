@@ -316,28 +316,32 @@ function Read-PhotoInfoData {
         }
         $pPersons = if ($parsed -is [System.Collections.IDictionary] -and $parsed.Contains("Persons")) { $parsed["Persons"] } else { $parsed.Persons }
         return @{
-            Category     = [string]$parsed.Category
-            DateStr      = [string]$parsed.DateStr
-            EventName    = [string]$parsed.EventName
-            MegaLink     = [string]$parsed.MegaLink
-            GigaFileLink = [string]$parsed.GigaFileLink
-            SentStatus   = [string]$parsed.SentStatus
-            Memo         = [string]$parsed.Notes
-            Persons      = $pPersons
+            Category       = [string]$parsed.Category
+            DateStr        = [string]$parsed.DateStr
+            EventName      = [string]$parsed.EventName
+            MegaLink       = [string]$parsed.MegaLink
+            GigaFileLink   = [string]$parsed.GigaFileLink
+            DlPassword     = [string]$parsed.DlPassword
+            GigaFileExpiry = [string]$parsed.GigaFileExpiry
+            SentStatus     = [string]$parsed.SentStatus
+            Memo           = [string]$parsed.Notes
+            Persons        = $pPersons
         }
     }
 
     $persons = New-Object System.Collections.Generic.List[hashtable]
     $persons.Add(@{ Name = ""; CostumeOrChar = ""; XAccount = ""; Comment = "" })
     return @{
-        Category     = "イベント"
-        DateStr      = [string]$PairedObj.DateStr
-        EventName    = ""
-        MegaLink     = ""
-        GigaFileLink = ""
-        SentStatus   = "未送付"
-        Memo         = ""
-        Persons      = $persons
+        Category       = "イベント"
+        DateStr        = [string]$PairedObj.DateStr
+        EventName      = ""
+        MegaLink       = ""
+        GigaFileLink   = ""
+        DlPassword     = ""
+        GigaFileExpiry = ""
+        SentStatus     = "未送付"
+        Memo           = ""
+        Persons        = $persons
     }
 }
 
@@ -452,6 +456,8 @@ function Save-AllPhotoInfoAndLedger {
     $eventVal = [string]$FormData.EventName
     $megaVal  = [string]$FormData.MegaLink
     $gigaVal  = [string]$FormData.GigaFileLink
+    $dlPwVal  = if ($FormData.ContainsKey("DlPassword")) { [string]$FormData.DlPassword } else { "" }
+    $expVal   = if ($FormData.ContainsKey("GigaFileExpiry")) { [string]$FormData.GigaFileExpiry } else { "" }
     $sentVal  = if ($FormData.ContainsKey("SentStatus") -and -not [string]::IsNullOrWhiteSpace([string]$FormData.SentStatus)) {
                     $rawS = ([string]$FormData.SentStatus).Trim()
                     if ($rawS -eq "送付済") { "送付済み" } else { $rawS }
@@ -515,16 +521,18 @@ function Save-AllPhotoInfoAndLedger {
     }
 
     $savePayload = @{
-        Category     = $catVal
-        DateStr      = $dateVal
-        ShootDate    = $dateVal
-        EventName    = $eventVal
-        MegaLink     = $megaVal
-        GigaFileLink = $gigaVal
-        ShareUrl     = $gigaVal
-        SentStatus   = $sentVal
-        Notes        = $memoVal
-        Persons      = ([object[]]$normalizedPersons.ToArray())
+        Category       = $catVal
+        DateStr        = $dateVal
+        ShootDate      = $dateVal
+        EventName      = $eventVal
+        MegaLink       = $megaVal
+        GigaFileLink   = $gigaVal
+        ShareUrl       = $gigaVal
+        DlPassword     = $dlPwVal
+        GigaFileExpiry = $expVal
+        SentStatus     = $sentVal
+        Notes          = $memoVal
+        Persons        = ([object[]]$normalizedPersons.ToArray())
     }
 
     $savedDirs = New-Object System.Collections.Generic.List[string]

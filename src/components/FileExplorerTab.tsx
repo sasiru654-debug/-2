@@ -24,6 +24,7 @@ const CATEGORY_ORDER = [
   'editor/',
   'workflow/',
   'gigafile/',
+  'updater/',
   'tests/',
   'data/',
 ];

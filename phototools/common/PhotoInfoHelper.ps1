@@ -82,7 +82,7 @@ function New-EmptyPhotoInfo {
         }
     }
     $persons = New-Object System.Collections.Generic.List[hashtable]
-    $persons.Add(@{ Name = ""; CostumeOrChar = ""; XAccount = ""; Comment = "" })
+    $persons.Add(@{ Name = ""; CostumeOrChar = ""; XAccount = ""; XUrl = ""; Comment = "" })
 
     return [ordered]@{
         FolderPath    = $FolderPath
@@ -94,11 +94,12 @@ function New-EmptyPhotoInfo {
         CostumeOrChar = ""
         Persons       = $persons
         Models        = @()
-        MegaLink      = ""
-        GigaFileLink  = ""
-        ShareUrl      = ""
-        DlPassword    = ""
-        SentStatus    = (Get-Tag @(0x672A, 0x9001, 0x4ED8))
+        MegaLink       = ""
+        GigaFileLink   = ""
+        ShareUrl       = ""
+        DlPassword     = ""
+        GigaFileExpiry = ""
+        SentStatus     = (Get-Tag @(0x672A, 0x9001, 0x4ED8))
         IsSent        = $false
         Status        = (Get-Tag @(0x672A, 0x767B, 0x9332))
         IsRegistered  = $false
@@ -136,6 +137,10 @@ function Read-PhotoInfoTxt {
         $inHeaderMemo = $false
         $headerCostume = ""
         $hasExplicitSentStatus = $false
+        $seenXTagWithUrl = $false
+        $seenXUrlTagCount = 0
+        $seenEmptyXWithUrl = $false
+        $seenMismatchedXUrl = $false
 
         $tCat   = Get-Tag @(0x3010, 0x64EE, 0x5F71, 0x533A, 0x5206, 0x3011)
         $tDate1 = Get-Tag @(0x3010, 0x64EE, 0x5F71, 0x65E5, 0x3011)
@@ -148,9 +153,16 @@ function Read-PhotoInfoTxt {
         $tSai   = Get-Tag @(0x3010, 0x50AC, 0x4E8B, 0x30FB, 0x5834, 0x6245, 0x540D, 0x3011)
         $tMega1 = Get-Tag @(0x3010, 0x004D, 0x0045, 0x0047, 0x30A2, 0x30EA, 0x30F3, 0x30AF, 0x3011)
         $tMega2 = Get-Tag @(0x3010, 0x004D, 0x0045, 0x0047, 0x0041, 0x5171, 0x6709, 0x0055, 0x0052, 0x004C, 0x3011)
+        $tMega3 = Get-Tag @(0x3010, 0x004D, 0x0045, 0x0047, 0x0041, 0x30EA, 0x30F3, 0x30AF, 0x3011)
         $tGiga1 = Get-Tag @(0x3010, 0x30AE, 0x30AC, 0x30D5, 0x30A1, 0x30A4, 0xEB, 0x4FBF, 0x30EA, 0x30F3, 0x30AF, 0x3011)
         $tGiga2 = Get-Tag @(0x3010, 0x30AE, 0x30AC, 0x30D5, 0x30A1, 0x30A4, 0xEB, 0x0055, 0x0052, 0x004C, 0x3011)
+        $tGiga3 = Get-Tag @(0x3010, 0x30AE, 0x30AC, 0x30D5, 0x30A1, 0x30A4, 0x30EB, 0x4FBF, 0x30EA, 0x30F3, 0x30AF, 0x3011)
+        $tGiga4 = Get-Tag @(0x3010, 0x30AE, 0x30AC, 0x30D5, 0x30A1, 0x30A4, 0x30EB, 0x4FBF, 0x0055, 0x0052, 0x004C, 0x3011)
         $tUrl   = Get-Tag @(0x3010, 0x5171, 0x6709, 0x0055, 0x0052, 0x004C, 0x3011)
+        $tDlPw1 = Get-Tag @(0x3010, 0x0044, 0x004C, 0x30D1, 0x30B9, 0x30EF, 0x30FC, 0x30C9, 0x3011)
+        $tDlPw2 = Get-Tag @(0x3010, 0x30D1, 0x30B9, 0x30EF, 0x30FC, 0x30C9, 0x3011)
+        $tExp1  = Get-Tag @(0x3010, 0x4FDD, 0x6301, 0x671F, 0x9650, 0x3011)
+        $tExp2  = Get-Tag @(0x3010, 0x4FDD, 0x6301, 0x671F, 0x9593, 0x3011)
         $tSent1 = Get-Tag @(0x3010, 0x30C7, 0x30FC, 0x30BF, 0x9001, 0x4ED8, 0x72B6, 0x6CC1, 0x3011)
         $tSent2 = Get-Tag @(0x3010, 0x9001, 0x4ED8, 0x72B6, 0x6CC1, 0x3011)
         $tUpd   = Get-Tag @(0x3010, 0x6700, 0x7D42, 0x66F4, 0x65B0, 0x65E5, 0x6642, 0x3011)
@@ -165,6 +177,7 @@ function Read-PhotoInfoTxt {
         $tX3    = Get-Tag @(0x3010, 0x30A2, 0x30AB, 0x30A6, 0x30F3, 0x30C8, 0x3011)
         $tX4    = Get-Tag @(0x3010, 0x30A2, 0x30AB, 0x30A6, 0x30F3, 0x30C8, 0x540D, 0x3011)
         $tX5    = Get-Tag @(0x3010, 0x0054, 0x0077, 0x0069, 0x0074, 0x0074, 0x0065, 0x0072, 0x3011)
+        $tXUrl  = Get-Tag @(0x3010, 0x0058, 0x005F, 0x0055, 0x0052, 0x004C, 0x3011)
         $tMemo  = Get-Tag @(0x3010, 0x30E1, 0x30ED, 0x3011)
         $tCom   = Get-Tag @(0x3010, 0x30B3, 0x30E1, 0x30F3, 0x30C8, 0x3011)
         $tRem   = Get-Tag @(0x3010, 0x5099, 0x8003, 0x3011)
@@ -207,12 +220,12 @@ function Read-PhotoInfoTxt {
                 $colonIdx = $trim.IndexOf($bClose)
                 if ($colonIdx -ge 0) { $info.EventName = $trim.Substring($colonIdx + 1).Trim() }
             }
-            elseif ($trim.StartsWith($tMega1) -or $trim.StartsWith($tMega2)) {
+            elseif ($trim.StartsWith($tMega1) -or $trim.StartsWith($tMega2) -or $trim.StartsWith($tMega3)) {
                 $inPersonComment = $false; $inHeaderMemo = $false
                 $colonIdx = $trim.IndexOf($bClose)
                 if ($colonIdx -ge 0) { $info.MegaLink = $trim.Substring($colonIdx + 1).Trim() }
             }
-            elseif ($trim.StartsWith($tGiga1) -or $trim.StartsWith($tGiga2) -or $trim.StartsWith($tUrl)) {
+            elseif ($trim.StartsWith($tGiga1) -or $trim.StartsWith($tGiga2) -or $trim.StartsWith($tGiga3) -or $trim.StartsWith($tGiga4) -or $trim.StartsWith($tUrl)) {
                 $inPersonComment = $false; $inHeaderMemo = $false
                 $colonIdx = $trim.IndexOf($bClose)
                 if ($colonIdx -ge 0) {
@@ -220,6 +233,16 @@ function Read-PhotoInfoTxt {
                     $info.GigaFileLink = $v
                     $info.ShareUrl = $v
                 }
+            }
+            elseif ($trim.StartsWith($tDlPw1) -or $trim.StartsWith($tDlPw2)) {
+                $inPersonComment = $false; $inHeaderMemo = $false
+                $colonIdx = $trim.IndexOf($bClose)
+                if ($colonIdx -ge 0) { $info.DlPassword = $trim.Substring($colonIdx + 1).Trim() }
+            }
+            elseif ($trim.StartsWith($tExp1) -or $trim.StartsWith($tExp2)) {
+                $inPersonComment = $false; $inHeaderMemo = $false
+                $colonIdx = $trim.IndexOf($bClose)
+                if ($colonIdx -ge 0) { $info.GigaFileExpiry = $trim.Substring($colonIdx + 1).Trim() }
             }
             elseif ($trim.StartsWith($tSent1) -or $trim.StartsWith($tSent2)) {
                 $inPersonComment = $false; $inHeaderMemo = $false
@@ -265,17 +288,44 @@ function Read-PhotoInfoTxt {
                     Name          = ConvertTo-SafeCleanModelName $nVal
                     CostumeOrChar = ""
                     XAccount      = ""
+                    XUrl          = ""
                     Comment       = ""
+                }
+            }
+            elseif ($trim.StartsWith($tXUrl)) {
+                $inPersonComment = $false; $inHeaderMemo = $false
+                if ($null -eq $curPerson) {
+                    $curPerson = @{ Name = ""; CostumeOrChar = ""; XAccount = ""; XUrl = ""; Comment = "" }
+                }
+                $seenXUrlTagCount++
+                $colonIdx = $trim.IndexOf($bClose)
+                $xuVal = if ($colonIdx -ge 0) { $trim.Substring($colonIdx + 1).Trim() } else { "" }
+                $curPerson.XUrl = $xuVal
+                if (-not [string]::IsNullOrWhiteSpace($xuVal)) {
+                    if ([string]::IsNullOrWhiteSpace([string]$curPerson.XAccount)) {
+                        $curPerson.XAccount = ConvertTo-SafeNormalizedX $xuVal
+                        if (-not [string]::IsNullOrWhiteSpace([string]$curPerson.XAccount)) {
+                            $seenEmptyXWithUrl = $true
+                        }
+                    }
+                } elseif (-not [string]::IsNullOrWhiteSpace([string]$curPerson.XAccount)) {
+                    $seenMismatchedXUrl = $true
                 }
             }
             elseif ($trim.StartsWith($tX1) -or $trim.StartsWith($tX2) -or $trim.StartsWith($tX3) -or $trim.StartsWith($tX4) -or $trim.StartsWith($tX5)) {
                 $inPersonComment = $false; $inHeaderMemo = $false
                 if ($null -eq $curPerson) {
-                    $curPerson = @{ Name = ""; CostumeOrChar = ""; XAccount = ""; Comment = "" }
+                    $curPerson = @{ Name = ""; CostumeOrChar = ""; XAccount = ""; XUrl = ""; Comment = "" }
                 }
                 $colonIdx = $trim.IndexOf($bClose)
                 $xVal = if ($colonIdx -ge 0) { $trim.Substring($colonIdx + 1).Trim() } else { "" }
+                if ($xVal -match '(?i)(https?://|x\.com/|twitter\.com/)') {
+                    $seenXTagWithUrl = $true
+                }
                 $curPerson.XAccount = ConvertTo-SafeNormalizedX $xVal
+                if (-not [string]::IsNullOrWhiteSpace([string]$curPerson.XAccount) -and [string]::IsNullOrWhiteSpace([string]$curPerson.XUrl)) {
+                    $curPerson.XUrl = "https://x.com/" + ([string]$curPerson.XAccount).TrimStart('@')
+                }
             }
             elseif ($trim.StartsWith($tMemo) -or $trim.StartsWith($tCom) -or $trim.StartsWith($tRem)) {
                 $colonIdx = $trim.IndexOf($bClose)
@@ -305,7 +355,7 @@ function Read-PhotoInfoTxt {
             $persons.Add($curPerson)
         }
         if ($persons.Count -eq 0) {
-            $persons.Add(@{ Name = ""; CostumeOrChar = ""; XAccount = ""; Comment = "" })
+            $persons.Add(@{ Name = ""; CostumeOrChar = ""; XAccount = ""; XUrl = ""; Comment = "" })
         }
         if (-not [string]::IsNullOrWhiteSpace($headerCostume) -and [string]::IsNullOrWhiteSpace($persons[0].CostumeOrChar)) {
             $persons[0].CostumeOrChar = $headerCostume
@@ -326,6 +376,10 @@ function Read-PhotoInfoTxt {
                         $p.CostumeOrChar = $com.Substring($colonIdx2 + 1).Split("`r`n")[0].Trim()
                     }
                 }
+            }
+            if (-not $p.Contains("XUrl") -or [string]::IsNullOrWhiteSpace([string]$p["XUrl"])) {
+                $pXNorm = if ($p.Contains("XAccount")) { ConvertTo-SafeNormalizedX ([string]$p["XAccount"]) } else { "" }
+                $p["XUrl"] = if ([string]::IsNullOrWhiteSpace($pXNorm)) { "" } else { "https://x.com/" + $pXNorm.TrimStart('@') }
             }
         }
 
@@ -361,6 +415,8 @@ function Read-PhotoInfoTxt {
                 $kMegaU = Get-Tag @(0x004D, 0x0045, 0x0047, 0x0041, 0x5171, 0x6709, 0x0055, 0x0052, 0x004C)
                 $kPass = Get-Tag @(0x0044, 0x004C, 0x30D1, 0x30B9, 0x30EF, 0x30FC, 0x30C9)
                 $kPass2 = Get-Tag @(0x30D1, 0x30B9, 0x30EF, 0x30FC, 0x30C9)
+                $kExp1 = Get-Tag @(0x4FDD, 0x6301, 0x671F, 0x9650)
+                $kExp2 = Get-Tag @(0x4FDD, 0x6301, 0x671F, 0x9593)
                 $kSent = Get-Tag @(0x9001, 0x4ED8, 0x72B6, 0x6CC1)
                 $kSentD = Get-Tag @(0x30C7, 0x30FC, 0x30BF, 0x9001, 0x4ED8, 0x72B6, 0x6CC1)
                 $kSentDon = Get-Tag @(0x9001, 0x4ED8, 0x6E08)
@@ -384,12 +440,14 @@ function Read-PhotoInfoTxt {
                         $mName = ConvertTo-SafeCleanModelName $parts[0].Trim()
                         $mX = if ($parts.Length -ge 2) { ConvertTo-SafeNormalizedX $parts[1].Trim() } else { "" }
                         $mChar = if ($parts.Length -ge 3) { $parts[2].Trim() } else { "" }
-                        $legacyModels += @{ Name = $mName; CostumeOrChar = $mChar; XAccount = $mX; Comment = "" }
+                        $mXUrl = if ([string]::IsNullOrWhiteSpace($mX)) { "" } else { "https://x.com/" + $mX.TrimStart('@') }
+                        $legacyModels += @{ Name = $mName; CostumeOrChar = $mChar; XAccount = $mX; XUrl = $mXUrl; Comment = "" }
                     }
                 }
                 elseif ($key -eq $kShare -or $key -eq $kGiga -or $key -eq "URL" -or $key -eq "ShareUrl") { $info.ShareUrl = $val; $info.GigaFileLink = $val }
                 elseif ($key -eq $kMega -or $key -eq $kMegaU) { $info.MegaLink = $val }
                 elseif ($key -eq $kPass -or $key -eq $kPass2 -or $key -eq "DlPassword") { $info.DlPassword = $val }
+                elseif ($key -eq $kExp1 -or $key -eq $kExp2 -or $key -eq "GigaFileExpiry") { $info.GigaFileExpiry = $val }
                 elseif ($key -eq $kSent -or $key -eq $kSentD -or $key -eq $kSentDon -or $key -eq $kSentDonF -or $key -eq "IsSent") {
                     if ($val -ne "") { $hasExplicitSentStatus = $true }
                     $sentDone = Get-Tag @(0x9001, 0x4ED8, 0x6E08, 0x307F)
@@ -415,7 +473,7 @@ function Read-PhotoInfoTxt {
                 $persons.Add($lm)
             }
         } else {
-            $persons.Add(@{ Name = ""; CostumeOrChar = $info.CostumeOrChar; XAccount = ""; Comment = $info.Comment })
+            $persons.Add(@{ Name = ""; CostumeOrChar = $info.CostumeOrChar; XAccount = ""; XUrl = ""; Comment = $info.Comment })
         }
         $info.Persons = $persons
     }
@@ -436,11 +494,16 @@ function Read-PhotoInfoTxt {
         if ($null -eq $p) { continue }
         $pNm = if ($p -is [System.Collections.IDictionary] -and $p.Contains("Name")) { [string]$p["Name"] } else { "" }
         $pXa = if ($p -is [System.Collections.IDictionary] -and $p.Contains("XAccount")) { [string]$p["XAccount"] } else { "" }
+        $pXu = if ($p -is [System.Collections.IDictionary] -and $p.Contains("XUrl")) { [string]$p["XUrl"] } else { "" }
+        if ([string]::IsNullOrWhiteSpace($pXu) -and -not [string]::IsNullOrWhiteSpace($pXa)) {
+            $pXu = "https://x.com/" + $pXa.TrimStart('@')
+        }
         $pCh = if ($p -is [System.Collections.IDictionary] -and $p.Contains("CostumeOrChar")) { [string]$p["CostumeOrChar"] } else { "" }
         if (-not [string]::IsNullOrWhiteSpace($pNm) -or -not [string]::IsNullOrWhiteSpace($pXa) -or -not [string]::IsNullOrWhiteSpace($pCh)) {
             $modelsArr += [pscustomobject]@{
                 Name     = $pNm
                 XId      = $pXa.TrimStart('@')
+                XUrl     = $pXu
                 CharName = $pCh
             }
         }
@@ -455,18 +518,47 @@ function Read-PhotoInfoTxt {
         $info.IsRegistered = $true
     }
     $info.Comment = $info.Notes
+
+    # 既存データの自動マイグレーション: 【X】がURL記載または【X_URL】未記載ならアクセス時に自動修正
+    $needsXMigration = $false
+    if ($isBracketFormat) {
+        if ($seenXTagWithUrl -or $seenEmptyXWithUrl -or $seenMismatchedXUrl -or ($seenXUrlTagCount -lt $info.Persons.Count)) {
+            $needsXMigration = $true
+        }
+    } else {
+        foreach ($p in $info.Persons) {
+            if ($null -ne $p -and $p -is [System.Collections.IDictionary] -and $p.Contains("XAccount") -and -not [string]::IsNullOrWhiteSpace([string]$p["XAccount"])) {
+                $needsXMigration = $true
+                break
+            }
+        }
+    }
+    if ($needsXMigration) {
+        try {
+            $saveDir = Split-Path -Parent $txtPath
+            if (-not [string]::IsNullOrWhiteSpace($saveDir) -and (Test-Path -LiteralPath $saveDir)) {
+                [void](Write-PhotoInfoTxt -FolderPath $saveDir -Info $info -FilePath $txtPath -PreserveUpdatedAt)
+            }
+        } catch {
+            # 読み取り専用ドライブやロック時は読み取り結果を優先して継続
+        }
+    }
+
     return $info
 }
 
 function Write-PhotoInfoTxt {
     param(
         [Parameter(Mandatory=$true)][string]$FolderPath,
-        [Parameter(Mandatory=$true)]$Info
+        [Parameter(Mandatory=$true)]$Info,
+        [string]$FilePath = "",
+        [switch]$PreserveUpdatedAt
     )
-    if (-not (Test-Path -LiteralPath $FolderPath)) {
-        throw "Target folder not found: $FolderPath"
+    $txtPath = if (-not [string]::IsNullOrWhiteSpace($FilePath)) { $FilePath } else { Join-Path $FolderPath "写真情報.txt" }
+    $parentDir = Split-Path -Parent $txtPath
+    if (-not [string]::IsNullOrWhiteSpace($parentDir) -and -not (Test-Path -LiteralPath $parentDir)) {
+        throw "Target folder not found: $parentDir"
     }
-    $txtPath = Join-Path $FolderPath "写真情報.txt"
     $nowStr = (Get-Date).ToString("yyyy/MM/dd HH:mm:ss")
 
     $getProp = {
@@ -486,6 +578,8 @@ function Write-PhotoInfoTxt {
     $eventVal = & $getProp $Info "EventName" ""
     $megaVal  = & $getProp $Info "MegaLink" ""
     $gigaVal  = & $getProp $Info "GigaFileLink" (& $getProp $Info "ShareUrl" "")
+    $dlPwVal  = & $getProp $Info "DlPassword" ""
+    $expVal   = & $getProp $Info "GigaFileExpiry" ""
     $sentVal  = & $getProp $Info "SentStatus" ""
     $sentDone = Get-Tag @(0x9001, 0x4ED8, 0x6E08, 0x307F)
     $sentDoneAlt = Get-Tag @(0x9001, 0x4ED8, 0x6E08)
@@ -529,10 +623,18 @@ function Write-PhotoInfoTxt {
 
     if ($personItems.Count -gt 0) {
         foreach ($rp in $personItems) {
+            $rawXAcc = & $getProp $rp "XAccount" (& $getProp $rp "XId" "")
+            $rawXUrl = & $getProp $rp "XUrl" ""
+            $normX = ConvertTo-SafeNormalizedX $rawXAcc
+            if ([string]::IsNullOrWhiteSpace($normX) -and -not [string]::IsNullOrWhiteSpace($rawXUrl)) {
+                $normX = ConvertTo-SafeNormalizedX $rawXUrl
+            }
+            $finalXUrl = if (-not [string]::IsNullOrWhiteSpace($normX)) { "https://x.com/" + $normX.TrimStart('@') } else { $rawXUrl }
             [void]$personsList.Add(@{
                 Name          = ConvertTo-SafeCleanModelName (& $getProp $rp "Name" "")
                 CostumeOrChar = & $getProp $rp "CostumeOrChar" (& $getProp $rp "CharName" "")
-                XAccount      = ConvertTo-SafeNormalizedX (& $getProp $rp "XAccount" (& $getProp $rp "XId" ""))
+                XAccount      = $normX
+                XUrl          = $finalXUrl
                 Comment       = & $getProp $rp "Comment" ""
             })
         }
@@ -545,10 +647,13 @@ function Write-PhotoInfoTxt {
             foreach ($rm in $rawModels) {
                 $c = & $getProp $rm "CharName" ""
                 if ([string]::IsNullOrWhiteSpace($c)) { $c = $defCostume }
+                $normX = ConvertTo-SafeNormalizedX (& $getProp $rm "XId" (& $getProp $rm "XUrl" ""))
+                $finalXUrl = if ([string]::IsNullOrWhiteSpace($normX)) { "" } else { "https://x.com/" + $normX.TrimStart('@') }
                 [void]$personsList.Add(@{
                     Name          = ConvertTo-SafeCleanModelName (& $getProp $rm "Name" "")
                     CostumeOrChar = $c
-                    XAccount      = ConvertTo-SafeNormalizedX (& $getProp $rm "XId" "")
+                    XAccount      = $normX
+                    XUrl          = $finalXUrl
                     Comment       = ""
                 })
             }
@@ -557,6 +662,7 @@ function Write-PhotoInfoTxt {
                 Name          = ""
                 CostumeOrChar = $defCostume
                 XAccount      = ""
+                XUrl          = ""
                 Comment       = ""
             })
         }
@@ -568,12 +674,18 @@ function Write-PhotoInfoTxt {
     $tSentTag  = Get-Tag @(0x3010, 0x30C7, 0x30FC, 0x30BF, 0x9001, 0x4ED8, 0x72B6, 0x6CC1, 0x3011)
     $tMegaTag  = Get-Tag @(0x3010, 0x004D, 0x0045, 0x0047, 0x30A2, 0x30EA, 0x30F3, 0x30AF, 0x3011)
     $tGigaTag  = Get-Tag @(0x3010, 0x30AE, 0x30AC, 0x30D5, 0x30A1, 0x30A4, 0xEB, 0x4FBF, 0x30EA, 0x30F3, 0x30AF, 0x3011)
+    $tDlPwTag  = Get-Tag @(0x3010, 0x0044, 0x004C, 0x30D1, 0x30B9, 0x30EF, 0x30FC, 0x30C9, 0x3011)
+    $tExpTag   = Get-Tag @(0x3010, 0x4FDD, 0x6301, 0x671F, 0x9650, 0x3011)
     $tMemoTag  = Get-Tag @(0x3010, 0x30E1, 0x30ED, 0x3011)
     $tUpdTag   = Get-Tag @(0x3010, 0x6700, 0x7D42, 0x66F4, 0x65B0, 0x65E5, 0x6642, 0x3011)
     $tNameTag  = Get-Tag @(0x3010, 0x540D, 0x524D, 0x3011)
     $tCosTag   = Get-Tag @(0x3010, 0x8863, 0x88C5, 0x30FB, 0x30AD, 0x30E3, 0x30E9, 0x3011)
     $tXTag     = Get-Tag @(0x3010, 0x0058, 0x3011)
+    $tXUrlTag  = Get-Tag @(0x3010, 0x0058, 0x005F, 0x0055, 0x0052, 0x004C, 0x3011)
     $tComTag   = Get-Tag @(0x3010, 0x30B3, 0x30E1, 0x30F3, 0x30C8, 0x3011)
+
+    $existingUpd = & $getProp $Info "UpdatedAt" ""
+    $updToWrite = if ($PreserveUpdatedAt -and -not [string]::IsNullOrWhiteSpace($existingUpd)) { $existingUpd } else { $nowStr }
 
     $sb = New-Object System.Text.StringBuilder
     [void]$sb.AppendLine("$tCatTag$catVal")
@@ -586,17 +698,25 @@ function Write-PhotoInfoTxt {
     if (-not [string]::IsNullOrWhiteSpace($gigaVal)) {
         [void]$sb.AppendLine("$tGigaTag$gigaVal")
     }
+    if (-not [string]::IsNullOrWhiteSpace($dlPwVal)) {
+        [void]$sb.AppendLine("$tDlPwTag$dlPwVal")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($expVal)) {
+        [void]$sb.AppendLine("$tExpTag$expVal")
+    }
     if (-not [string]::IsNullOrWhiteSpace($memoVal)) {
         [void]$sb.AppendLine("$tMemoTag$memoVal")
     }
-    [void]$sb.AppendLine("$tUpdTag$nowStr")
+    [void]$sb.AppendLine("$tUpdTag$updToWrite")
     [void]$sb.AppendLine("----------------------------------------")
 
     foreach ($p in $personsList) {
-        $xUrl = if ([string]::IsNullOrWhiteSpace($p.XAccount)) { "" } else { "https://x.com/" + $p.XAccount.TrimStart('@') }
+        $xAccount = [string]$p.XAccount
+        $xUrl = if (-not [string]::IsNullOrWhiteSpace($xAccount)) { "https://x.com/" + $xAccount.TrimStart('@') } else { [string]$p.XUrl }
         [void]$sb.AppendLine("$tNameTag$($p.Name)")
         [void]$sb.AppendLine("$tCosTag$($p.CostumeOrChar)")
-        [void]$sb.AppendLine("$tXTag$xUrl")
+        [void]$sb.AppendLine("$tXTag$xAccount")
+        [void]$sb.AppendLine("$tXUrlTag$xUrl")
         [void]$sb.AppendLine("$tComTag$($p.Comment)")
         [void]$sb.AppendLine("----------------------------------------")
     }

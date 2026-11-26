@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import ToolFlowchartDiagram from './ToolFlowchartDiagram';
 import VbNetMigrationPlanSection from './VbNetMigrationPlanSection';
+import { REPAIR_HISTORY } from '../data/repairData';
 
 interface SystemSpecTabProps {
   onSelectFile?: (filePath: string) => void;
@@ -45,49 +46,63 @@ const MODULE_SPECS: ModuleSpecRow[] = [
     name: 'DailyWorkflow & Step1〜5 統括GUI',
     file: 'workflow/DailyWorkflow.ps1 / WorkflowStep1〜5Helper.ps1',
     status: '検証済',
-    spec: '【REV-35 検証済】①カメラ取り込み元と現像後フォルダを個別選択し撮影日付（YYYY-MM-DD）で自動紐づけ。②階層 TreeView 表示。③Step3（現像済みJPEG自動振分・1秒監視・上書きチェック・保留ファイル管理・保留理由出力）およびStep4（現像側 vs 取込元 統合比較リスト・コア名正規化・一括削除）を完全網羅。',
+    spec: '①カメラ取り込み元と現像後フォルダを個別選択し撮影日付で自動紐づけ。②階層 TreeView 表示（1日1人時の日付直下表示・子フォルダ名3ルート一括リネーム同期対応）。③Step1〜5（Step3 1秒監視・保留管理・上書き制御／Step4 統合比較・コア名正規化・一括削除）および同日複数フォルダを束ねる「メッセージ作成(まとめ可)」ボタンを統合。',
   },
   {
     category: 'Step3 自動振分・監視',
     name: '1秒監視 & 保留管理・上書き制御',
     file: 'workflow/WorkflowStep3Helper.ps1',
     status: '検証済',
-    spec: '【REV-35 最新仕様】起動時デフォルト「監視 OFF」。上書きチェックボックス（$chkOverwrite）を配置。1秒監視モード中、未変更ファイルの重複チェック・ログスパムを FileCache (Ticks + Status + Reason) で完全抑制。未振分・保留となったファイルは「RAW参照なし」「移送先に同名ファイルが存在するためスキップ（上書きオフ）」等の詳細な理由とともに1ファイル1行でログ出力・解除管理。',
+    spec: '起動時デフォルト「監視 OFF」。上書きチェックボックス（$chkOverwrite）を配置。1秒監視モード中、未変更ファイルの重複チェック・ログスパムを FileCache (Ticks + Status + Reason) で完全抑制。未振分・保留となったファイルは「RAW参照なし」「移送先に同名ファイルが存在するためスキップ（上書きオフ）」等の詳細な理由とともに1ファイル1行でログ出力・解除管理（メタデータTXTは自動除外）。',
   },
   {
     category: 'Step4 比較・削除',
     name: '現像済み vs 取込元 統合比較 & カメラ内現像データ削除',
     file: 'workflow/WorkflowStep4Helper.ps1',
     status: '検証済',
-    spec: '【REV-37 検証済】現像側（現像済み写真）と取込元ファイルをファイル名一致で比較統合。Get-CoreImageName でキャノンカメラの命名規則（8文字ベース名一致：元画像とカメラ内現像データの IMG_2650 vs IMG_2650_1 等）を同一写真とみなして比較し、現像済みとなった取込元側のカメラ内現像データ（重複ファイル）を一括安全削除。さらに上部に取込元・現像側フルパス表示ラベルおよび「フォルダを開く」ボタンを搭載。',
+    spec: '現像側（現像済み写真）と取込元ファイルをファイル名一致で比較統合（日付直下配置にも対応）。Get-CoreImageName でキャノンカメラの命名規則（8文字ベース名一致：元画像とカメラ内現像データの IMG_2650 vs IMG_2650_1 等）を同一写真とみなして比較し、現像済みとなった取込元側のカメラ内現像データ（重複ファイル）を一括安全削除。取込元・現像側フルパス表示と「フォルダを開く」を搭載。',
   },
   {
     category: '被写体プロパティ',
     name: '写真情報編集・ペア同期',
     file: 'editor/PhotoInfoEditor.ps1 / common/PhotoEditorLogic.ps1',
     status: '検証済',
-    spec: '①ImportRoot1/2・RawSaveRoot・DevelopedRoot間でペア解決し同時保存（複数人・同日衣装補完・データ送付済み管理）。②仕分けフォルダが深くなっても scene.txt は日付直下(A)か子直下(B)のみを参照。③イベント・併せ・スタジオ・場所欄は選択コピー可・手入力不可（ReadOnly）へ変更。',
+    spec: '①ImportRoot1/2・RawSaveRoot・DevelopedRoot間でペア解決し同時保存（日付直下1日1人・複数人・同日衣装補完・データ送付済み管理・DLパスワード/保持期限保持）。②仕分けフォルダが深くなっても scene.txt は日付直下(A)か子直下(B)のみを参照。③衣装・キャラ欄横の「写真からキャラ検索」ボタンから6層漏洩対策付きAIキャラ判定ダイアログを、下部「メッセージ作成」ボタンから単体モードの送付メッセージ作成ダイアログを起動可能。',
   },
   {
     category: 'データ形式',
     name: '写真情報.txt パーサ／ライタ',
     file: 'common/PhotoInfoHelper.ps1',
     status: '検証済',
-    spec: '【撮影区分】【撮影日】【催事・場所名】【データ送付状況】【MEGAリンク】【ギガファイル便リンク】【メモ】と --- 区切りの人物ブロック（【名前】【衣装・キャラ】【Xアカウント】【コメント】）を UTF-8 (BOM付)+CRLF で保存。明示された「未送付」はURLが存在しても自動上書きしない。',
+    spec: '【撮影区分】【撮影日】【イベント名】【データ送付状況】【MEGAリンク】【ギガファイル便リンク】【DLパスワード】【保持期限】【メモ】と --- 区切りの人物ブロック（【名前】【衣装・キャラ】【X】(@アカウント名)・【X_URL】(https://x.com/...)・【コメント】）を UTF-8 (BOM付)+CRLF で保存。既存の【X】にURLが記載されているデータもアクセス時に【X】+【X_URL】形式へ自動修正。明示された「未送付」はURLが存在しても自動上書きしない。',
   },
   {
     category: '台帳・Excel',
     name: '写真管理一覧.xlsx OpenXML同期',
     file: 'common/ExcelHelper.ps1 / workflow/SyncExcelFromTxt.ps1',
     status: '検証済',
-    spec: 'Excel COM 非依存の OpenXML 直接読み書きにより全18列（撮影日〜最終更新日時、データ送付状況=送付済み／未送付）を更新。一意キーは「現像後フォルダ（または取込フォルダ／相対パス）＋モデル名＋人物連番」。Step5 移動時はパス列を自動追従。',
+    spec: 'Excel COM 非依存の OpenXML 直接読み書きにより全18列（撮影日〜最終更新日時、データ送付状況=送付済み／未送付）を更新。一意キーは「現像後フォルダ（または取込フォルダ／相対パス）＋モデル名＋人物連番」。Step5 移動時・子フォルダリネーム時はパス列を自動追従。',
   },
   {
     category: '履歴・外部連携',
     name: 'Xアカウント / シーン / MEGA / GigaFile',
     file: 'common/XHelper.ps1 / SceneHelper.ps1 / MegaHelper.ps1 / gigafile/*',
     status: '検証済',
-    spec: 'XHelper は4段階取得＋HttpWebRequest UTF-8明示デコード＋同日フィルタ付き履歴（x_history.json）。SceneHelper は親フォルダ scene.txt 継承＋scene_history.json 学習。GigaFile は D&D/SendTo/GUIコールバック対応、MEGA は MEGAcmd 共有リンク取得に対応。',
+    spec: 'XHelper は4段階取得＋HttpWebRequest UTF-8明示デコード＋同日フィルタ付き履歴（x_history.json）。SceneHelper は親フォルダ scene.txt 継承＋scene_history.json 学習。GigaFile は自動命名ZIP・子フォルダ一括・DLパスワード/保持期限（yyyy/MM/ddまで）自動保存・完了後メッセージ作成起動に対応。MEGA は MEGAcmd 非同期実行＆ポップアップ内リアルタイム処理ログ表示に対応。',
+  },
+  {
+    category: '送付メッセージ作成',
+    name: '定型文・MEGAコメント・まとめ送付ダイアログ',
+    file: 'editor/MessageComposerDialog.ps1 / common/MessageTemplateHelper.ps1',
+    status: '検証済',
+    spec: 'PhotoInfoEditor（単体）・DailyWorkflow（同日まとめ）・ギガファイル便完了画面の3箇所から起動。初期本文は空欄、ギガファイル便／MEGA のどちらか一方を選択し「メッセージを作成」押下で生成。MEGA選択時に未取得フォルダがあれば確認後に MegaHelper 取得＆台帳書き戻し。{データリンク} は複数リンク／複数人時に「個撮リンク１」「複数リンク１＋次行に名前（キャラ名）（3名以上は、区切り）」で出力し、MEGA選択時専用コメント5種切替・コピー後「送付済み」一括更新（既定ON）を搭載。',
+  },
+  {
+    category: 'AIキャラ名検索',
+    name: '6層漏洩対策付きAIキャラクター判定',
+    file: 'editor/CharacterLookupDialog.ps1 / common/GeminiCharacterHelper.ps1',
+    status: '検証済',
+    spec: 'PhotoInfoEditor の衣装・キャラ欄から手動2ステップ起動。①送信前プレビューで顔・背景をマウスドラッグで黒塗り／モザイク（マスク0箇所時は確認警告を表示して続行可）。②メモリ上のみで Exif 向き補正＋再描画による全メタデータ除去と長辺縮小（既定640px・一時ファイル非生成）。③モデル名・X・日付・フォルダ名等の個人情報ゼロ送信。④APIキーは Windows DPAPI（CurrentUser）暗号化で data\\gemini_api_key.dat へ保存（x-goog-api-key ヘッダー送信・ZIP配布対象外）。⑤Google Cloud 有料枠（学習不使用）確認チェック必須。⑥候補一覧から既定書式「キャラ名（作品名）」（ほか2書式切替可）で衣装・キャラ欄へ反映。',
   },
   {
     category: '設定・文字コード',
@@ -98,10 +113,17 @@ const MODULE_SPECS: ModuleSpecRow[] = [
   },
   {
     category: '総合マスター管理',
-    name: 'PhotoTools Master & 設定編集画面',
+    name: 'PhotoTools Master & 設定・定型文・AI編集画面',
     file: 'PhotoToolsMaster.ps1 / editor/SettingsEditor.ps1 / StartPhotoToolsMaster.bat',
     status: '検証済',
-    spec: '作業用・完了後・アーカイブのタブ切替式オンデマンドスキャン、日付スコープ選択による DailyWorkflow 起動、複数ルート間の不整合診断チェッカー、Excel台帳の自動補完、および右上ボタンから開く settings.ini／履歴JSON設定編集GUIを統合した最上位司令塔コンソール。',
+    spec: '作業用・完了後・アーカイブのタブ切替式オンデマンドスキャン、日付スコープ選択による DailyWorkflow 起動、不整合診断チェッカー、Excel台帳自動補完を統合。右上ボタンから開く SettingsEditor.ps1 は5タブ構成（パス／期分け・拡張子・MEGA／関連JSON直接編集・OS登録／メッセージ定型文＆MEGA共通コメント／AIキャラ判定・DPAPIキー管理・0トークン接続テスト）で即時反映。',
+  },
+  {
+    category: '単独更新支援',
+    name: 'PhotoTools 自動更新支援ツール',
+    file: 'updater/PhotoToolsUpdater.ps1 / updater/StartPhotoToolsUpdater.vbs',
+    status: '検証済',
+    spec: '本体および common\\*.ps1 に一切依存しない完全自己完結型 GUI アップデータ（別フォルダへ単体コピーしても起動可能）。ブラウザ連番 (1)(2)... からの最新ZIP自動選択、GitHub最新ブランチZIP取得（公開／PAT非公開対応）、事前バックアップ（直近5世代）、settings.ini 設定維持マージ、data\\（履歴・定型文・AI設定/DPAPI暗号化キー）完全保護、自動ブロック解除、不要ファイル確認削除を一括実行。',
   },
 ];
 
@@ -123,7 +145,7 @@ export default function SystemSpecTab({ onSelectFile }: SystemSpecTabProps) {
               PhotoTools（phototools）全体詳細仕様・ツール関係性フローチャート
             </h1>
             <p className="text-xs text-slate-300 max-w-4xl leading-relaxed">
-              カメラ取り込み、RAW仕分け、現像済みJPEG自動振分（1秒監視・保留理由管理・上書き制御）、重複ファイル削除（統合比較リスト・キャノン8文字コア名正規化）、長期アーカイブ、1日1人時の日付直下を含む写真情報.txt管理、設定編集GUI、およびExcel台帳（OpenXML）自動同期までを一気通貫で自動化する写真管理ツールキットの全体仕様書です。
+              カメラ取り込み、RAW仕分け、現像済みJPEG自動振分（1秒監視・保留理由管理・上書き制御）、重複ファイル削除（統合比較リスト・キャノン8文字コア名正規化）、長期アーカイブ、1日1人時の日付直下を含む写真情報.txt管理、6層漏洩対策付きAIキャラ名検索、定型文＆MEGAコメント対応の送付メッセージ作成、5タブ設定編集GUI、単独自動更新支援ツール、およびExcel台帳（OpenXML）自動同期までを一気通貫で自動化する写真管理ツールキットの全体仕様書です。
             </p>
           </div>
 
@@ -204,7 +226,7 @@ export default function SystemSpecTab({ onSelectFile }: SystemSpecTabProps) {
               <span>データ連携・同期基盤</span>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              写真情報.txt、Excel台帳（写真管理一覧.xlsx）、Xアカウント履歴（x_history.json）、シーン履歴（scene_history.json）が相互に連動し、データ欠損や二重入力のない自動同期ワークフローを実現。
+              写真情報.txt（【X】/【X_URL】・【DLパスワード】・【保持期限】含む）、Excel台帳（写真管理一覧.xlsx）、Xアカウント履歴（x_history.json）、シーン履歴（scene_history.json）、送付定型文（message_templates.json）、およびAIキャラ設定（ai_character_settings.json / DPAPI暗号化キー gemini_api_key.dat）が相互連動し、安全性と省力化を両立します。
             </p>
             <div className="text-[11px] font-mono text-teal-900 bg-teal-50 p-2 border border-teal-200">
               OpenXML 直接読み書きエンジン搭載
@@ -297,9 +319,11 @@ export default function SystemSpecTab({ onSelectFile }: SystemSpecTabProps) {
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-teal-700 shrink-0" />
             <div>
-              <h2 className="text-base font-bold text-slate-900">モジュール別仕様・検証ステータス一覧（REV-01 〜 REV-35）</h2>
+              <h2 className="text-base font-bold text-slate-900">
+                モジュール別仕様・検証ステータス一覧（REV-01 〜 {REPAIR_HISTORY[0]?.rev ?? 'REV-51'}）
+              </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                各モジュールの実装仕様、対象スクリプトファイル、および検証状況の一覧です。
+                全 {MODULE_SPECS.length} モジュール領域の実装仕様、対象スクリプトファイル、および検証状況の一覧です。
               </p>
             </div>
           </div>
@@ -376,28 +400,25 @@ export default function SystemSpecTab({ onSelectFile }: SystemSpecTabProps) {
         </section>
       </div>
 
-      {/* 6. PhotoTools Master & 拡張機能仕様（ギガファイル便連携拡張・MEGA非同期ログ・3ルート同期） */}
+      {/* 6. PhotoTools Master & 拡張機能仕様 */}
       <section className="bg-white border border-slate-200 p-6 space-y-4 shadow-xs">
         <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
           <Clock className="w-4 h-4 text-emerald-600" />
-          <h2 className="text-sm font-bold text-slate-900">PhotoTools Master & 拡張機能仕様（すべて実装済）</h2>
+          <h2 className="text-sm font-bold text-slate-900">PhotoTools Master & 拡張機能仕様（全7領域・実装済）</h2>
         </div>
         <p className="text-xs text-slate-600 leading-relaxed">
-          マスター管理コンソール「PhotoTools Master」、非同期・安全制御（MEGAポップアップ内リアルタイム処理ログ表示含む）、子フォルダ名3ルート一括リネーム同期、およびギガファイル便連携拡張の統合仕様です。
+          マスター管理コンソール「PhotoTools Master」＆5タブ設定編集、非同期・安全制御、子フォルダ名3ルート同期＆1日1人対応、ギガファイル便連携拡張、送付メッセージ作成、単独更新支援ツール、および6層漏洩対策付きAIキャラ名検索の統合仕様です。
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-emerald-50/40 border border-emerald-200 p-4 space-y-2 rounded-sm">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-emerald-900">1. PhotoTools Master</h3>
+              <h3 className="text-xs font-bold text-emerald-900">1. PhotoTools Master & 設定編集</h3>
               <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 rounded">実装済</span>
             </div>
             <ul className="text-xs text-slate-700 space-y-1.5 leading-relaxed">
-              <li>• <strong>単独起動</strong>：独立したマスター司令塔。</li>
-              <li>• <strong>切替式ビュー</strong>：作業用/完了後/アーカイブタブ切替。</li>
-              <li>• <strong>日付スコープ</strong>：日付選択して DailyWorkflow起動。</li>
-              <li>• <strong>不整合チェック</strong>：重複日付フォルダ一括診断。</li>
-              <li>• <strong>台帳自動補完</strong>：情報.txtから未登録行を自動復元。</li>
-              <li>• <strong>仮登録正規化</strong>：正式行へ自動昇格。</li>
+              <li>• <strong>切替式ビュー</strong>：作業用/完了後/アーカイブのオンデマンドスキャン。</li>
+              <li>• <strong>不整合診断＆台帳補完</strong>：重複日付診断と未登録行の自動復元・正規化。</li>
+              <li>• <strong>5タブ設定GUI</strong>：パス・期分け・JSON/OS登録・定型文・AIキャラ判定を統合管理。</li>
             </ul>
           </div>
 
@@ -407,21 +428,21 @@ export default function SystemSpecTab({ onSelectFile }: SystemSpecTabProps) {
               <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 rounded">実装済</span>
             </div>
             <ul className="text-xs text-slate-700 space-y-1.5 leading-relaxed">
-              <li>• <strong>アプローチA</strong>：Stepヘルパー別プロセス化。</li>
+              <li>• <strong>アプローチA</strong>：Step2 / Step5 の別プロセス非同期実行。</li>
               <li>• <strong>MEGA非同期</strong>：ポップアップ内リアルタイム処理ログ表示。</li>
-              <li>• <strong>閉じガード</strong>：処理中クローズ警告と強制終了。</li>
+              <li>• <strong>閉じガード</strong>：処理中クローズ警告と未保存変更確認。</li>
             </ul>
           </div>
 
           <div className="bg-emerald-50/40 border border-emerald-200 p-4 space-y-2 rounded-sm">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-emerald-900">3. 子フォルダ名同期</h3>
+              <h3 className="text-xs font-bold text-emerald-900">3. フォルダ同期 & 1日1人 / X分離</h3>
               <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 rounded">実装済</span>
             </div>
             <ul className="text-xs text-slate-700 space-y-1.5 leading-relaxed">
-              <li>• <strong>リネーム追従</strong>：取込後・現像後どちらで変更しても自動同期。</li>
-              <li>• <strong>RAW間連動</strong>：RAWフォルダ側も含めて3ルートを一括命名同期。</li>
-              <li>• <strong>台帳・パス保護</strong>：パス変更後もStep3/4・Excel台帳を完全維持。</li>
+              <li>• <strong>3ルート一括リネーム</strong>：取込・現像後・RAW と Excel台帳パスを同時追従。</li>
+              <li>• <strong>1日1人日付直下対応</strong>：子フォルダなしで日付直下の写真情報.txtを編集・送信。</li>
+              <li>• <strong>【X】/【X_URL】分離</strong>：既存旧形式もアクセス時に更新日時維持のまま自動修正。</li>
             </ul>
           </div>
 
@@ -431,9 +452,45 @@ export default function SystemSpecTab({ onSelectFile }: SystemSpecTabProps) {
               <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 rounded">実装済</span>
             </div>
             <ul className="text-xs text-slate-700 space-y-1.5 leading-relaxed">
-              <li>• <strong>自動命名ZIP</strong>：情報.txt解析で日付_イベント_名前.zip命名。</li>
-              <li>• <strong>子フォルダ一括</strong>：全URL一覧リストを出力。</li>
-              <li>• <strong>URL自動記録</strong>：送付状況を「送付済み」へ自動更新。</li>
+              <li>• <strong>自動命名ZIP</strong>：情報.txt解析で 日付_イベント_名前.zip を自動提案。</li>
+              <li>• <strong>子フォルダ一括</strong>：個別分割アップロード＆全URL一覧リスト出力。</li>
+              <li>• <strong>自動記録＆連携</strong>：URL・DLパスワード・保持期限(yyyy/MM/ddまで)を記録し完了画面からメッセージ作成を起動。</li>
+            </ul>
+          </div>
+
+          <div className="bg-emerald-50/40 border border-emerald-200 p-4 space-y-2 rounded-sm">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-emerald-900">5. 送付メッセージ作成 & 定型文</h3>
+              <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 rounded">実装済</span>
+            </div>
+            <ul className="text-xs text-slate-700 space-y-1.5 leading-relaxed">
+              <li>• <strong>3箇所から起動</strong>：単体（被写体プロパティ）／まとめ（日次ワークフロー）／ギガ完了後。</li>
+              <li>• <strong>リンク自動整形</strong>：個撮リンク１／複数リンク１＋共演者（名前（キャラ名）、区切り）。</li>
+              <li>• <strong>MEGA連動＆送付済み</strong>：未取得確認取得・MEGA共通コメント5種切替・コピー後送付済み更新。</li>
+            </ul>
+          </div>
+
+          <div className="bg-emerald-50/40 border border-emerald-200 p-4 space-y-2 rounded-sm">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-emerald-900">6. 単独更新支援ツール</h3>
+              <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 rounded">実装済</span>
+            </div>
+            <ul className="text-xs text-slate-700 space-y-1.5 leading-relaxed">
+              <li>• <strong>完全自己完結</strong>：本体非依存で別フォルダ単体コピーからも黒画面ゼロ起動。</li>
+              <li>• <strong>最新ZIP取得</strong>：連番 (1)(2)... 最新自動選択＆GitHub公開/非公開リポジトリ対応。</li>
+              <li>• <strong>安全保護更新</strong>：直近5世代バックアップ・settings.iniマージ・data\\完全保護・不要削除確認。</li>
+            </ul>
+          </div>
+
+          <div className="bg-emerald-50/40 border border-emerald-200 p-4 space-y-2 rounded-sm">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-emerald-900">7. AIキャラ名検索（6層漏洩対策）</h3>
+              <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 rounded">実装済</span>
+            </div>
+            <ul className="text-xs text-slate-700 space-y-1.5 leading-relaxed">
+              <li>• <strong>顔マスク＆確認警告</strong>：黒塗り／モザイク編集対応・マスク0箇所時は送信前に確認警告。</li>
+              <li>• <strong>完全サニタイズ＆DPAPI</strong>：メモリ上でExif除去＆縮小（既定640px）・個人情報未送信・DPAPI暗号化キー保存・有料枠確認必須。</li>
+              <li>• <strong>即反映書式</strong>：既定「キャラ名（作品名）」ほか3書式切替で衣装・キャラ欄へワンクリック反映。</li>
             </ul>
           </div>
         </div>

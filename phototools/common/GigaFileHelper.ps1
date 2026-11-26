@@ -86,12 +86,19 @@ function Invoke-GigaFileUploadWithCallback {
                 $d = & $getField $obj @("DelKey", "delkey")
                 $pw = & $getField $obj @("Password", "password")
                 $lt = & $getField $obj @("LifetimeDays", "lifetime") "0"
+                $exp = & $getField $obj @("ExpiryDate", "expiryDate", "GigaFileExpiry")
+                $ltInt = 0
+                [void][int]::TryParse($lt, [ref]$ltInt)
+                if ([string]::IsNullOrWhiteSpace($exp) -and $ltInt -gt 0) {
+                    $exp = (Get-Date).AddDays($ltInt).ToString("yyyy/MM/dd") + "まで"
+                }
                 return @{
                     Success      = (-not [string]::IsNullOrWhiteSpace($u))
                     Url          = $u
                     DelKey       = $d
                     Password     = $pw
-                    LifetimeDays = [int]$lt
+                    LifetimeDays = $ltInt
+                    ExpiryDate   = $exp
                 }
             }
         }
@@ -102,6 +109,7 @@ function Invoke-GigaFileUploadWithCallback {
             DelKey       = ""
             Password     = ""
             LifetimeDays = 0
+            ExpiryDate   = ""
         }
     } finally {
         if (Test-Path -LiteralPath $callbackFile) {

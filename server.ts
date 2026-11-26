@@ -55,6 +55,7 @@ function walkPackageFiles(dir: string, baseDir: string): string[] {
   const results: string[] = [];
   for (const entry of entries) {
     if (entry.name.startsWith('.')) continue;
+    if (entry.name.toLowerCase() === 'gemini_api_key.dat') continue;
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       results.push(...walkPackageFiles(fullPath, baseDir));

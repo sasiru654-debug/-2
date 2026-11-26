@@ -475,36 +475,48 @@ $TreeFolders.BackColor = [System.Drawing.Color]::White
 $Form.Controls.Add($TreeFolders)
 
 $BtnOpenEditor = New-Object System.Windows.Forms.Button
-$BtnOpenEditor.Text = "被写体プロパティを開く"
+$BtnOpenEditor.Text = "被写体プロパティ"
 $BtnOpenEditor.Location = New-Object System.Drawing.Point(16, 514)
-$BtnOpenEditor.Size = New-Object System.Drawing.Size(185, 32)
+$BtnOpenEditor.Size = New-Object System.Drawing.Size(155, 32)
 $Form.Controls.Add($BtnOpenEditor)
 
 $BtnGigaSend = New-Object System.Windows.Forms.Button
-$BtnGigaSend.Text = "選択フォルダをギガファイル便で送る（URL自動反映）"
-$BtnGigaSend.Location = New-Object System.Drawing.Point(209, 514)
-$BtnGigaSend.Size = New-Object System.Drawing.Size(348, 32)
+$BtnGigaSend.Text = "ギガファイル便で送る"
+$BtnGigaSend.Location = New-Object System.Drawing.Point(177, 514)
+$BtnGigaSend.Size = New-Object System.Drawing.Size(205, 32)
 $BtnGigaSend.BackColor = [System.Drawing.Color]::FromArgb(26, 115, 232)
 $BtnGigaSend.ForeColor = [System.Drawing.Color]::White
 $BtnGigaSend.FlatStyle = "Flat"
 $Form.Controls.Add($BtnGigaSend)
 
+$BtnCreateMessage = New-Object System.Windows.Forms.Button
+$BtnCreateMessage.Text = "メッセージ作成(まとめ可)"
+$BtnCreateMessage.Location = New-Object System.Drawing.Point(388, 514)
+$BtnCreateMessage.Size = New-Object System.Drawing.Size(182, 32)
+$BtnCreateMessage.BackColor = [System.Drawing.Color]::FromArgb(15, 118, 110)
+$BtnCreateMessage.ForeColor = [System.Drawing.Color]::White
+$BtnCreateMessage.FlatStyle = "Flat"
+$BtnCreateMessage.Font = New-Object System.Drawing.Font("Yu Gothic UI", 9.5, [System.Drawing.FontStyle]::Bold)
+$ToolTip.SetToolTip($BtnCreateMessage, "選択フォルダのモデルと同一Xアカウントを含む同日フォルダをまとめて送付メッセージ作成します")
+$Form.Controls.Add($BtnCreateMessage)
+
 $BtnOpenExplorer = New-Object System.Windows.Forms.Button
-$BtnOpenExplorer.Text = "エクスプローラーで開く"
-$BtnOpenExplorer.Location = New-Object System.Drawing.Point(565, 514)
-$BtnOpenExplorer.Size = New-Object System.Drawing.Size(155, 32)
+$BtnOpenExplorer.Text = "フォルダを開く"
+$BtnOpenExplorer.Location = New-Object System.Drawing.Point(576, 514)
+$BtnOpenExplorer.Size = New-Object System.Drawing.Size(148, 32)
 $Form.Controls.Add($BtnOpenExplorer)
 
 $BtnRenameSubFolder = New-Object System.Windows.Forms.Button
 $BtnRenameSubFolder.Text = "フォルダ名変更(3同期)"
-$BtnRenameSubFolder.Location = New-Object System.Drawing.Point(728, 514)
-$BtnRenameSubFolder.Size = New-Object System.Drawing.Size(158, 32)
+$BtnRenameSubFolder.Location = New-Object System.Drawing.Point(730, 514)
+$BtnRenameSubFolder.Size = New-Object System.Drawing.Size(156, 32)
 $ToolTip.SetToolTip($BtnRenameSubFolder, "選択した子フォルダ名を取込元・現像後・RAWの3ルートおよびExcel台帳で一括変更・同期します")
 $Form.Controls.Add($BtnRenameSubFolder)
 
 $TreeCtxMenu = New-Object System.Windows.Forms.ContextMenuStrip
 $MnuCtxRename = $TreeCtxMenu.Items.Add("子フォルダ名を変更（取込・現像後・RAW 3ルート一括同期）")
 $MnuCtxEditor = $TreeCtxMenu.Items.Add("被写体プロパティを開く")
+$MnuCtxMessage = $TreeCtxMenu.Items.Add("メッセージ作成（同一Xアカウントまとめ可）")
 $TreeFolders.ContextMenuStrip = $TreeCtxMenu
 
 $TxtWorkflowLog = New-Object System.Windows.Forms.TextBox
@@ -1338,6 +1350,7 @@ $PromptRenameSubFolderAction = {
 $BtnRenameSubFolder.Add_Click($PromptRenameSubFolderAction)
 $MnuCtxRename.Add_Click($PromptRenameSubFolderAction)
 $MnuCtxEditor.Add_Click({ $BtnOpenEditor.PerformClick() })
+$MnuCtxMessage.Add_Click({ $BtnCreateMessage.PerformClick() })
 
 $BtnAddChildFolder.Add_Click({
     if ([string]::IsNullOrWhiteSpace($script:ActiveDateName)) { return }
@@ -1470,14 +1483,21 @@ $BtnGigaSend.Add_Click({
     try {
         $res = Invoke-GigaFileUploadWithCallback -TargetPaths @($targetFolder) -RootDir $RootDir -Config $Config
         if ($null -ne $res -and -not [string]::IsNullOrWhiteSpace($res.Url)) {
-            Append-WfLog "共有URL取得成功: $($res.Url) (削除キー: $($res.DelKey))"
+            $expStr = if ($res.ContainsKey("ExpiryDate") -and -not [string]::IsNullOrWhiteSpace([string]$res.ExpiryDate)) {
+                [string]$res.ExpiryDate
+            } elseif ([int]$res.LifetimeDays -gt 0) {
+                (Get-Date).AddDays([int]$res.LifetimeDays).ToString("yyyy/MM/dd") + "まで"
+            } else { "" }
+            Append-WfLog "共有URL取得成功: $($res.Url) (削除キー: $($res.DelKey) / 期限: $expStr)"
             $updatedInfos = @()
-            $memo = "[ギガファイル便] URL=$($res.Url) / PW=$($res.Password) / 削除キー=$($res.DelKey) / 期限=$($res.LifetimeDays)日"
+            $memo = "[ギガファイル便] URL=$($res.Url) / PW=$($res.Password) / 削除キー=$($res.DelKey) / 期限=$expStr"
             foreach ($pairDir in @(Get-PairedDirsForActiveSubPath -RelSubPath $relSub)) {
                 if ([string]::IsNullOrWhiteSpace($pairDir) -or -not (Test-Path -LiteralPath $pairDir)) { continue }
                 $info = Read-PhotoInfoTxt -FolderPath $pairDir -Config $Config
                 $info.ShareUrl = $res.Url
                 $info.GigaFileLink = $res.Url
+                $info.DlPassword = [string]$res.Password
+                $info.GigaFileExpiry = $expStr
                 $info.SentStatus = "送付済み"
                 $info.IsSent = $true
                 if ([string]::IsNullOrWhiteSpace($info.Notes)) {
@@ -1502,6 +1522,47 @@ $BtnGigaSend.Add_Click({
     } catch {
         Write-LogError -ModuleName "DailyWorkflow" -Message $_.Exception.Message -ErrorRecord $_ | Out-Null
         Append-WfLog "[ERROR] $($_.Exception.Message)"
+    }
+})
+
+$BtnCreateMessage.Add_Click({
+    $sel = $TreeFolders.SelectedNode
+    if ($null -eq $sel -or $null -eq $sel.Tag) {
+        Show-MsgBox -Text "メッセージ作成の対象となるフォルダを一覧から選択してください。" -Title "未選択" -Buttons "OK" -Icon "Warning" -Owner $Form | Out-Null
+        return
+    }
+    $relSub = [string]$sel.Tag.RelSubPath
+    $targetFolder = Resolve-PreferredSubFolderPath -RelSubPath $relSub
+    if ([string]::IsNullOrWhiteSpace($targetFolder) -or -not (Test-Path -LiteralPath $targetFolder)) {
+        Show-MsgBox -Text "選択フォルダが存在しません: $targetFolder" -Title "エラー" -Buttons "OK" -Icon "Error" -Owner $Form | Out-Null
+        return
+    }
+    $composerScript = Join-Path $RootDir "editor\MessageComposerDialog.ps1"
+    if (-not (Test-Path -LiteralPath $composerScript)) {
+        Show-MsgBox -Text "MessageComposerDialog.ps1 が見つかりません:`n$composerScript" -Title "エラー" -Buttons "OK" -Icon "Error" -Owner $Form | Out-Null
+        return
+    }
+    try {
+        . $composerScript
+        $searchRoots = @($script:ActiveDevDateFolder, $script:ActiveImportDateFolder) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path -LiteralPath $_ -PathType Container) }
+        $msgRes = Show-MessageComposerDialog `
+            -Mode "Combined" `
+            -PrimaryFolder $targetFolder `
+            -DateSearchRoots @($searchRoots) `
+            -RootDir $RootDir `
+            -Config $Config `
+            -OwnerForm $Form
+        if ($null -ne $msgRes) {
+            if ($msgRes.UpdatedMega) { Append-WfLog "メッセージ作成画面からMEGAリンクを取得し写真情報・台帳へ反映しました。" }
+            if ($msgRes.MarkedSent)  { Append-WfLog "メッセージコピー連動で対象フォルダを送付済みへ更新しました。" }
+            if ($msgRes.UpdatedMega -or $msgRes.MarkedSent) {
+                Update-FolderTree -PreferredSelectRel $relSub
+            }
+        }
+    } catch {
+        Write-LogError -ModuleName "DailyWorkflow" -Message $_.Exception.Message -ErrorRecord $_ | Out-Null
+        Append-WfLog "[ERROR] メッセージ作成画面起動失敗: $($_.Exception.Message)"
+        Show-MsgBox -Text "メッセージ作成画面エラー:`n$($_.Exception.Message)" -Title "エラー" -Buttons "OK" -Icon "Error" -Owner $Form | Out-Null
     }
 })
 

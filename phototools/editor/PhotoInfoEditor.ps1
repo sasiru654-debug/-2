@@ -131,6 +131,8 @@ $script:CurrentPersonIndex = 0
 $script:IsUpdatingUI = $false
 $script:IsDirty = $false
 $script:RelatedFolders = @()
+$script:CurrentDlPassword = ""
+$script:CurrentGigaExpiry = ""
 
 function Find-DateFolderAncestor {
     param([string]$StartFolder)
@@ -355,9 +357,19 @@ $grpPerson.Controls.Add($lblCostume)
 
 $cmbCostume = New-Object System.Windows.Forms.ComboBox
 $cmbCostume.Location = New-Object System.Drawing.Point(140, 103)
-$cmbCostume.Size = New-Object System.Drawing.Size(480, 25)
+$cmbCostume.Size = New-Object System.Drawing.Size(344, 25)
 $cmbCostume.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDown
 $grpPerson.Controls.Add($cmbCostume)
+
+$btnLookupChar = New-Object System.Windows.Forms.Button
+$btnLookupChar.Text = "写真からキャラ検索"
+$btnLookupChar.Location = New-Object System.Drawing.Point(490, 102)
+$btnLookupChar.Size = New-Object System.Drawing.Size(130, 27)
+$btnLookupChar.BackColor = [System.Drawing.Color]::FromArgb(240, 253, 250)
+$btnLookupChar.ForeColor = [System.Drawing.Color]::FromArgb(15, 118, 110)
+$btnLookupChar.FlatStyle = "Flat"
+$toolTip.SetToolTip($btnLookupChar, "フォルダ内の写真を顔マスク・縮小・Exif除去してからAIでキャラ名候補を調べます")
+$grpPerson.Controls.Add($btnLookupChar)
 
 $lblX = New-Object System.Windows.Forms.Label
 $lblX.Text = "Xアカウント:"
@@ -411,14 +423,25 @@ $txtComment.ScrollBars = "Vertical"
 $grpPerson.Controls.Add($txtComment)
 
 $btnOpenDevFolder = New-Object System.Windows.Forms.Button
-$btnOpenDevFolder.Text = "現像後フォルダを開く"
+$btnOpenDevFolder.Text = "現像後を開く"
 $btnOpenDevFolder.Location = New-Object System.Drawing.Point(15, 632)
-$btnOpenDevFolder.Size = New-Object System.Drawing.Size(170, 36)
+$btnOpenDevFolder.Size = New-Object System.Drawing.Size(128, 36)
 $form.Controls.Add($btnOpenDevFolder)
 
+$btnCreateMessage = New-Object System.Windows.Forms.Button
+$btnCreateMessage.Text = "メッセージ作成"
+$btnCreateMessage.Location = New-Object System.Drawing.Point(149, 632)
+$btnCreateMessage.Size = New-Object System.Drawing.Size(118, 36)
+$btnCreateMessage.BackColor = [System.Drawing.Color]::FromArgb(15, 118, 110)
+$btnCreateMessage.ForeColor = [System.Drawing.Color]::White
+$btnCreateMessage.FlatStyle = "Flat"
+$btnCreateMessage.Font = New-Object System.Drawing.Font("Yu Gothic UI", 9.5, [System.Drawing.FontStyle]::Bold)
+$toolTip.SetToolTip($btnCreateMessage, "このフォルダの送付メッセージを作成します（単独モード・MEGA未取得確認＆送付済み連動対応）")
+$form.Controls.Add($btnCreateMessage)
+
 $chkSent = New-Object System.Windows.Forms.CheckBox
-$chkSent.Text = "データ送付済み"
-$chkSent.Location = New-Object System.Drawing.Point(200, 639)
+$chkSent.Text = "送付済み"
+$chkSent.Location = New-Object System.Drawing.Point(275, 639)
 $chkSent.AutoSize = $true
 $chkSent.Font = New-Object System.Drawing.Font("Yu Gothic UI", 9.5, [System.Drawing.FontStyle]::Bold)
 $toolTip.SetToolTip($chkSent, "チェックを入れると「送付済」として写真情報.txtおよびExcel台帳の送付状況欄に記録されます")
@@ -426,8 +449,8 @@ $form.Controls.Add($chkSent)
 
 $btnSave = New-Object System.Windows.Forms.Button
 $btnSave.Text = "保存してExcel台帳を更新"
-$btnSave.Location = New-Object System.Drawing.Point(365, 632)
-$btnSave.Size = New-Object System.Drawing.Size(185, 36)
+$btnSave.Location = New-Object System.Drawing.Point(366, 632)
+$btnSave.Size = New-Object System.Drawing.Size(188, 36)
 $btnSave.BackColor = [System.Drawing.Color]::SteelBlue
 $btnSave.ForeColor = [System.Drawing.Color]::White
 $btnSave.Font = New-Object System.Drawing.Font("Yu Gothic UI", 9.5, [System.Drawing.FontStyle]::Bold)
@@ -660,6 +683,8 @@ function Load-FolderIntoEditor([string]$FolderToLoad) {
         $txtMega.Text  = $parsed.MegaLink
         $txtGiga.Text  = $parsed.GigaFileLink
         $txtMemo.Text  = $parsed.Memo
+        $script:CurrentDlPassword = if ($parsed.ContainsKey("DlPassword")) { [string]$parsed.DlPassword } else { "" }
+        $script:CurrentGigaExpiry = if ($parsed.ContainsKey("GigaFileExpiry")) { [string]$parsed.GigaFileExpiry } else { "" }
         $chkSent.Checked = ($parsed.SentStatus -eq "送付済み" -or $parsed.SentStatus -eq "送付済" -or $parsed.SentStatus -eq "True" -or $parsed.SentStatus -eq "1" -or $parsed.SentStatus -eq "●")
 
         $safePersons = New-Object System.Collections.Generic.List[hashtable]
@@ -966,9 +991,15 @@ $btnSendGiga.Add_Click({
         if ($null -ne $gigaRes -and -not [string]::IsNullOrWhiteSpace([string]$gigaRes.Url)) {
             $txtGiga.Text = [string]$gigaRes.Url
             $chkSent.Checked = $true
+            $script:CurrentDlPassword = [string]$gigaRes.Password
+            $script:CurrentGigaExpiry = if ($gigaRes.ContainsKey("ExpiryDate") -and -not [string]::IsNullOrWhiteSpace([string]$gigaRes.ExpiryDate)) {
+                [string]$gigaRes.ExpiryDate
+            } elseif ([int]$gigaRes.LifetimeDays -gt 0) {
+                (Get-Date).AddDays([int]$gigaRes.LifetimeDays).ToString("yyyy/MM/dd") + "まで"
+            } else { "" }
             [System.Windows.Forms.Clipboard]::SetText([string]$gigaRes.Url)
             $passNote = if (-not [string]::IsNullOrWhiteSpace([string]$gigaRes.Password))     { " / PW: $($gigaRes.Password)" } else { "" }
-            $daysNote = if ([int]$gigaRes.LifetimeDays -gt 0)                               { " / 期限: $($gigaRes.LifetimeDays)日" } else { "" }
+            $daysNote = if (-not [string]::IsNullOrWhiteSpace($script:CurrentGigaExpiry))     { " / 期限: $($script:CurrentGigaExpiry)" } else { "" }
             $delNote  = if (-not [string]::IsNullOrWhiteSpace([string]$gigaRes.DelKey))       { " / 削除キー: $($gigaRes.DelKey)" } else { "" }
             $memoLine = "【ギガファイル便】$($gigaRes.Url)${passNote}${daysNote}${delNote}"
             $curMemo = $txtMemo.Text.Trim()
@@ -1012,18 +1043,112 @@ $btnOpenDevFolder.Add_Click({
     Start-Process "explorer.exe" -ArgumentList "`"$devDir`""
 })
 
+$btnLookupChar.Add_Click({
+    try {
+        $lookupScript = Join-Path $RootDir "editor\CharacterLookupDialog.ps1"
+        if (-not (Test-Path -LiteralPath $lookupScript)) {
+            Show-MsgBox -Text "CharacterLookupDialog.ps1 が見つかりません:`n$lookupScript" -Title "エラー" -Buttons "OK" -Icon "Error" -Owner $form | Out-Null
+            return
+        }
+        . $lookupScript
+        $searchFolders = New-Object System.Collections.ArrayList
+        foreach ($candDir in @([string]$script:Paired.DevFolder, [string]$script:Paired.ImportFolder, [string]$script:Paired.Target)) {
+            if (-not [string]::IsNullOrWhiteSpace($candDir) -and (Test-Path -LiteralPath $candDir -PathType Container)) {
+                if ($searchFolders -notcontains $candDir) { [void]$searchFolders.Add($candDir) }
+            }
+        }
+        $aiRes = Show-CharacterLookupDialog `
+            -FolderPaths @($searchFolders.ToArray()) `
+            -RootDir $RootDir `
+            -Config $EffectiveConfig `
+            -OwnerForm $form
+        if ($null -ne $aiRes -and [bool]$aiRes.Applied -and -not [string]::IsNullOrWhiteSpace([string]$aiRes.SelectedText)) {
+            $cmbCostume.Text = [string]$aiRes.SelectedText
+            Save-CurrentPersonToMemory
+            Mark-Dirty
+            Write-EditorLog "AIキャラ検索結果を反映: $($aiRes.SelectedText)"
+        }
+    } catch {
+        Show-EditorErrorDialog -TitlePrefix "AIキャラ検索エラー" -ErrorRecord $_ -Context @{
+            Action       = "CharacterLookup"
+            TargetFolder = [string]$script:Paired.Target
+        }
+    }
+})
+
+$btnCreateMessage.Add_Click({
+    try {
+        Save-CurrentPersonToMemory
+        if ($script:IsDirty) {
+            $ansSave = [System.Windows.Forms.MessageBox]::Show(
+                $form,
+                "未保存の入力内容があります。先に保存してからメッセージ作成画面を開きますか？",
+                "未保存の確認",
+                [System.Windows.Forms.MessageBoxButtons]::YesNoCancel,
+                [System.Windows.Forms.MessageBoxIcon]::Question
+            )
+            if ($ansSave -eq [System.Windows.Forms.DialogResult]::Cancel) { return }
+            if ($ansSave -eq [System.Windows.Forms.DialogResult]::Yes) {
+                $formDataTmp = @{
+                    Category       = [string]$cmbCategory.SelectedItem
+                    DateStr        = $txtDate.Text.Trim()
+                    EventName      = $txtEvent.Text.Trim()
+                    MegaLink       = $txtMega.Text.Trim()
+                    GigaFileLink   = $txtGiga.Text.Trim()
+                    DlPassword     = $script:CurrentDlPassword
+                    GigaFileExpiry = $script:CurrentGigaExpiry
+                    SentStatus     = if ($chkSent.Checked) { "送付済み" } else { "未送付" }
+                    Memo           = $txtMemo.Text.Trim()
+                }
+                [void](Save-AllPhotoInfoAndLedger `
+                    -FormData $formDataTmp `
+                    -PersonsList $script:PersonsList `
+                    -PairedObj $script:Paired `
+                    -EffectiveConfig $EffectiveConfig `
+                    -RelatedFolders $script:RelatedFolders)
+                $script:IsDirty = $false
+            }
+        }
+        $composerScript = Join-Path $RootDir "editor\MessageComposerDialog.ps1"
+        if (-not (Test-Path -LiteralPath $composerScript)) {
+            Show-MsgBox -Text "MessageComposerDialog.ps1 が見つかりません:`n$composerScript" -Title "エラー" -Buttons "OK" -Icon "Error" -Owner $form | Out-Null
+            return
+        }
+        . $composerScript
+        $msgRes = Show-MessageComposerDialog `
+            -FolderPaths @($script:Paired.Target) `
+            -Mode "Single" `
+            -SelectedModelIndex $script:CurrentPersonIndex `
+            -OverrideDlPassword $script:CurrentDlPassword `
+            -OverrideExpiryDate $script:CurrentGigaExpiry `
+            -RootDir $RootDir `
+            -Config $EffectiveConfig `
+            -OwnerForm $form
+        if ($null -ne $msgRes -and ($msgRes.UpdatedMega -or $msgRes.MarkedSent)) {
+            Load-FolderIntoEditor $script:Paired.Target
+        }
+    } catch {
+        Show-EditorErrorDialog -TitlePrefix "メッセージ作成画面エラー" -ErrorRecord $_ -Context @{
+            Action       = "OpenMessageComposer"
+            TargetFolder = [string]$script:Paired.Target
+        }
+    }
+})
+
 $btnSave.Add_Click({
     try {
         Save-CurrentPersonToMemory
         Update-MultiFolderButton
         $formData = @{
-            Category     = [string]$cmbCategory.SelectedItem
-            DateStr      = $txtDate.Text.Trim()
-            EventName    = $txtEvent.Text.Trim()
-            MegaLink     = $txtMega.Text.Trim()
-            GigaFileLink = $txtGiga.Text.Trim()
-            SentStatus   = if ($chkSent.Checked) { "送付済み" } else { "未送付" }
-            Memo         = $txtMemo.Text.Trim()
+            Category       = [string]$cmbCategory.SelectedItem
+            DateStr        = $txtDate.Text.Trim()
+            EventName      = $txtEvent.Text.Trim()
+            MegaLink       = $txtMega.Text.Trim()
+            GigaFileLink   = $txtGiga.Text.Trim()
+            DlPassword     = $script:CurrentDlPassword
+            GigaFileExpiry = $script:CurrentGigaExpiry
+            SentStatus     = if ($chkSent.Checked) { "送付済み" } else { "未送付" }
+            Memo           = $txtMemo.Text.Trim()
         }
         [void](Save-AllPhotoInfoAndLedger `
             -FormData $formData `

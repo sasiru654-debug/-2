@@ -23,6 +23,72 @@ export interface RepairHistoryItem {
 
 export const REPAIR_HISTORY: RepairHistoryItem[] = [
   {
+    rev: 'REV-51',
+    phase: '写真からのAIキャラクター名検索機能（6層漏洩対策・顔マスク・DPAPI暗号化キー保存・キャラ名（作品名）反映）の実装およびプレビュー全体最新同期',
+    target: '被写体プロパティ（PhotoInfoEditor）から写真のキャラクター名・作品名を安全に調査・反映できるAIキャラ検索ダイアログと、SettingsEditor の「AIキャラ判定」設定タブ（5タブ構成）を新規実装。あわせて Web プレビューの全タブ・仕様書・フローチャート・確認項目を REV-51 へ完全同期。',
+    summary:
+      '① common/GeminiCharacterHelper.ps1 と editor/CharacterLookupDialog.ps1 を新規実装。事前プレビュー上でマウスドラッグによる顔・背景マスク（黒塗り／モザイク・1つ戻す・全消去）に対応し、マスク0箇所時は送信前に確認警告ダイアログを表示（後ろ姿や衣装アップ等で続行可）。② 送信前にメモリ上のみで Exif 向き補正＋新規24bppビットマップ再描画によるメタデータ（Exif/IPTC/XMP）完全除去と長辺縮小（既定640px・JPEG品質75）を実施し、一時ファイルをディスクへ一切書き出さない設計（個人情報・撮影日・Xアカウント・フォルダ名・ファイル名も一切未送信）。③ APIキーは Windows DPAPI（CurrentUser）で暗号化して data/gemini_api_key.dat へ保存（settings.ini・ZIP配布対象外、マスク入力、ログ非出力、x-goog-api-key ヘッダー送信）。editor/SettingsEditor.ps1 に5つ目の「AIキャラ判定」タブを追加し、Google Cloud 有料枠（学習不使用規約）確認チェック必須化・モデル選択・縮小サイズ・既定マスク種別・既定反映書式・0トークン接続テストを実装。④ editor/PhotoInfoEditor.ps1 の衣装・キャラ欄横に「写真からキャラ検索」ボタンを追加し、候補一覧（確度・根拠付き）から既定書式「キャラ名（作品名）」（ほか「キャラ名のみ」「作品名 / キャラ名」へ随時切替可）で反映可能に統合。⑤ tests/ModuleTestCases.ps1 に「12. GeminiCharacterHelper」オフライン自動テストを追加し、プレビュー全画面を最新化。',
+    files: [
+      'common/GeminiCharacterHelper.ps1',
+      'editor/CharacterLookupDialog.ps1',
+      'editor/SettingsEditor.ps1',
+      'editor/PhotoInfoEditor.ps1',
+      'tests/ModuleTestCases.ps1',
+      'server.ts',
+      'src/components/VerificationChecklistTab.tsx',
+      'src/components/SystemSpecTab.tsx',
+      'src/components/ToolFlowchartDiagram.tsx',
+      'src/components/VbNetMigrationPlanSection.tsx',
+      'src/components/RepairReportTab.tsx',
+      'src/data/repairData.ts',
+    ],
+    status: '確認待ち',
+  },
+  {
+    rev: 'REV-50',
+    phase: '送付メッセージ作成機能（定型文・MEGAコメント・まとめ送付・送付済み連動）の実装およびプレビュー全体最新同期',
+    target: '被写体プロパティ・日次ワークフロー・ギガファイル便完了画面の3箇所から起動できる送付メッセージ作成ダイアログと、SettingsEditor の「メッセージ定型文」設定タブを新規実装。あわせてWebプレビューの全タブ・件数・フローチャート・仕様書を最新構成へ完全同期。',
+    summary:
+      '① common/MessageTemplateHelper.ps1 と editor/MessageComposerDialog.ps1 を新規実装。初期本文は空欄で開き、ギガファイル便／MEGA のどちらか一方を選択して「メッセージを作成」押下で生成。MEGA選択時に未取得フォルダがあれば確認ダイアログ→MegaHelper実行→写真情報.txt＆Excel台帳へ書き戻しに対応。② {データリンク} は単一1人時は見出しなし、複数リンク／複数人時は「個撮リンク１」「複数リンク１＋次行に名前（キャラ名）（3名以上は、区切り）」で出力し、ギガファイル便はDLパスワード（入力時のみ）と保持期間（yyyy/MM/ddまで）を整形。③ MEGA選択時専用の共通コメント（長文・バランス・やわらかめ・最小限・なしの5プリセット＋自由編集）を搭載し、コピー後の「送付済み」一括更新（既定ON）を実装。④ editor/SettingsEditor.ps1 に4つ目の「メッセージ定型文」タブ（初期定型文リスト空・変数ボタン挿入・MEGAコメント管理）を追加し、data/message_templates.json を保護対象へ統合。⑤ PhotoInfoHelper（【DLパスワード】【保持期限】対応）・PhotoEditorLogic・GigaFileHelper・PhotoInfoEditor・DailyWorkflow・send_to_gigafile・ModuleTestCases（01〜11）およびプレビュー全画面を最新化。',
+    files: [
+      'common/MessageTemplateHelper.ps1',
+      'editor/MessageComposerDialog.ps1',
+      'editor/SettingsEditor.ps1',
+      'editor/PhotoInfoEditor.ps1',
+      'workflow/DailyWorkflow.ps1',
+      'gigafile/send_to_gigafile.ps1',
+      'common/PhotoInfoHelper.ps1',
+      'common/PhotoEditorLogic.ps1',
+      'common/GigaFileHelper.ps1',
+      'tests/ModuleTestCases.ps1',
+      'src/components/VerificationChecklistTab.tsx',
+      'src/components/SystemSpecTab.tsx',
+      'src/components/ToolFlowchartDiagram.tsx',
+      'src/components/VbNetMigrationPlanSection.tsx',
+      'src/components/FileExplorerTab.tsx',
+      'src/components/RepairReportTab.tsx',
+      'src/data/repairData.ts',
+    ],
+    status: '確認待ち',
+  },
+  {
+    rev: 'REV-49',
+    phase: '写真情報.txt の【X】（アカウント名）と【X_URL】（URL）分離および既存データのアクセス時自動修正',
+    target: 'これまで【X】欄にURLが出力されていた仕様を改訂し、【X】にはアカウント名（@ID）、新設の【X_URL】にURL（https://x.com/ID）を記載。既存ファイルもアクセス時に自動変換するよう対応。',
+    summary:
+      '① common/PhotoInfoHelper.ps1 の Write-PhotoInfoTxt を修正し、人物ブロックへ【X】(@アカウント名) と【X_URL】(https://x.com/...) を分離出力するよう変更。② Read-PhotoInfoTxt に【X_URL】読込と自動マイグレーションを実装し、既存の【X】にURLが記載されているファイルや【X_URL】未記載ファイルへ DailyWorkflow / PhotoInfoEditor / PhotoToolsMaster / SyncExcelFromTxt 等からアクセスしたタイミングで、元の最終更新日時を維持したまま新形式へ自動修正（読み取り専用時はスキップ安全継続）。③ gigafile/send_to_gigafile.ps1 にもアクセス時自動修正を追加し、ExcelHelper.ps1・ModuleTestCases.ps1・仕様書・確認項目(#19)を更新。',
+    files: [
+      'common/PhotoInfoHelper.ps1',
+      'common/ExcelHelper.ps1',
+      'gigafile/send_to_gigafile.ps1',
+      'tests/ModuleTestCases.ps1',
+      'src/components/SystemSpecTab.tsx',
+      'src/components/VerificationChecklistTab.tsx',
+      'src/data/repairData.ts',
+    ],
+    status: '確認待ち',
+  },
+  {
     rev: 'REV-48',
     phase: '単独起動の PhotoTools 自動更新支援ツール（PhotoToolsUpdater.ps1 / StartPhotoToolsUpdater.vbs）の新規実装',
     target: 'ZIPダウンロード後の解凍・上書き・ブロック解除・不要ファイル整理を自動化する、本体非依存の単独更新支援 GUI ツールを新規作成。',
@@ -639,14 +705,17 @@ export const REPAIR_HISTORY: RepairHistoryItem[] = [
 
 export const TEST_MODULES: TestModuleSpec[] = [
   { id: 'LogHelper', name: '01. LogHelper', scope: 'INFO/ERRORログ出力・パス解決検証' },
-  { id: 'ConfigHelper', name: '02. ConfigHelper', scope: 'settings.ini 読込・互換キー・期分け計算検証' },
-  { id: 'PhotoInfoHelper', name: '03. PhotoInfoHelper', scope: '写真情報.txt 新旧読込/書込・複数人移行検証' },
+  { id: 'ConfigHelper', name: '02. ConfigHelper', scope: 'settings.ini 読込・保存・互換キー・期分け計算検証' },
+  { id: 'PhotoInfoHelper', name: '03. PhotoInfoHelper', scope: '写真情報.txt 読込/書込・【X】/【X_URL】自動移行・DLパスワード/保持期限検証' },
   { id: 'SceneHelper', name: '04. SceneHelper', scope: 'シーン履歴保存・候補取得・同一モデル検索検証' },
   { id: 'XHelper', name: '05. XHelper', scope: 'X正規化・名前クリーニング・dates配列JSON読込/保存検証' },
   { id: 'ExcelHelper', name: '06. ExcelHelper', scope: 'OpenXML xlsx生成・同一キー上書き・移動追従検証' },
   { id: 'WorkflowHelpers', name: '07. WorkflowHelpers', scope: 'DailyWorkflow・SyncExcel・Step1〜5 サンドボックス結合検証' },
-  { id: 'PhotoInfoEditor', name: '08. PhotoInfoEditor', scope: 'ペア解決・双方向同期・同日衣装自動補完・台帳保存検証' },
+  { id: 'PhotoInfoEditor', name: '08. PhotoInfoEditor', scope: 'ペア解決・日付直下(1日1人)・双方向同期・台帳保存検証' },
   { id: 'GigaFileHelper', name: '09. GigaFileHelper', scope: 'GigaFileHelper / send_to_gigafile / OpenFromProtocol 検証' },
+  { id: 'PhotoToolsMaster', name: '10. PhotoToolsMaster', scope: 'PhotoTools Master・SettingsEditor・単独更新支援ツール構文/整合検証' },
+  { id: 'MessageTemplateHelper', name: '11. MessageTemplateHelper', scope: '送付メッセージ定型文・複数リンク/共演者整形・MEGAコメント切替検証' },
+  { id: 'GeminiCharacterHelper', name: '12. GeminiCharacterHelper', scope: 'DPAPI暗号化キー保護・Exif除去・縮小/マスク生成・キャラ名書式整形検証' },
 ];
 
 export const SETTINGS_FIELDS: SettingsFieldSpec[] = [

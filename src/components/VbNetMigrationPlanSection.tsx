@@ -102,14 +102,20 @@ const DATA_COMPAT_ROWS: DataCompatRow[] = [
   {
     asset: '写真情報.txt / scene.txt',
     format: 'UTF-8 (BOM付) + CRLF / 【項目】+ --- 人物ブロック',
-    strategy: '日付フォルダ直下（1日1人）およびサブフォルダ配置の両対応。旧コロン形式・ブロック形式の読み込み互換も継承',
+    strategy: '日付フォルダ直下（1日1人）およびサブフォルダ配置の両対応。【X】(@ID)／【X_URL】分離自動修正・【DLパスワード】・【保持期限】・旧コロン形式互換も継承',
     coexistence: 'どちらで編集・保存しても相互に完全読込可能',
   },
   {
-    asset: 'x_history.json / scene_history.json',
-    format: 'UTF-8 JSON（dates配列・lastDate 等）',
-    strategy: 'System.Text.Json で現行JSON構造をそのままデシリアライズ。未存在時のみ空JSON生成し、既存履歴は上書きしない',
-    coexistence: 'D:\\PhotoTools\\data 配下の既存履歴をそのまま継続利用',
+    asset: 'x_history.json / scene_history.json / message_templates.json / ai_character_settings.json',
+    format: 'UTF-8 JSON（履歴配列・定型文・AI判定設定）',
+    strategy: 'System.Text.Json で現行JSON構造（message_templates.json の定型文＆MEGAコメント5種、ai_character_settings.json のモデル・縮小・書式設定）をそのままデシリアライズ。未存在時のみ初期生成し既存データは上書きしない',
+    coexistence: 'D:\\PhotoTools\\data 配下の既存履歴・定型文・AI設定をそのまま継続利用',
+  },
+  {
+    asset: 'data/gemini_api_key.dat',
+    format: 'Windows DPAPI 暗号化バイナリ（CurrentUser）',
+    strategy: 'System.Security.Cryptography.ProtectedData (DataProtectionScope.CurrentUser) で現行 PS 版と同一フォーマットのまま復号・暗号化。ZIP配布やログへは一切出力しない',
+    coexistence: '同一Windowsユーザーであれば PS版・VB.NET版で登録済みAPIキーをそのまま共有可能',
   },
   {
     asset: '写真管理一覧.xlsx',
@@ -164,7 +170,7 @@ const MODULE_MAPPINGS: ModuleMappingRow[] = [
     currentPsFile: 'editor/SettingsEditor.ps1',
     targetVbClass: 'Forms/SettingsForm.vb + Infrastructure/OsRegistrationService.vb',
     project: 'PhotoTools.App',
-    notes: '3タブ設定画面・パス存在検証・JSON直接編集・OS登録',
+    notes: '5タブ設定画面（パス・期分け/MEGA・JSON/OS登録・メッセージ定型文＆MEGAコメント・AIキャラ判定/DPAPIキー）',
   },
   {
     phase: 'PHASE1',
@@ -189,6 +195,14 @@ const MODULE_MAPPINGS: ModuleMappingRow[] = [
     targetVbClass: 'Forms/PhotoInfoEditorForm.vb + Services/FolderPairService.vb',
     project: 'PhotoTools.App',
     notes: '3ルートペア解決・日付直下/子フォルダ両対応・複数人編集・未保存確認',
+  },
+  {
+    phase: 'PHASE2',
+    phaseLabel: 'Phase 2: 日次フロー・エディタ',
+    currentPsFile: 'common/MessageTemplateHelper.ps1 / editor/MessageComposerDialog.ps1',
+    targetVbClass: 'Services/MessageTemplateService.vb + Forms/MessageComposerForm.vb',
+    project: 'PhotoTools.App',
+    notes: '単体/まとめ送付メッセージ作成・個撮/複数リンク＋共演者整形・MEGAコメント切替・送付済み連動',
   },
   {
     phase: 'PHASE2',
@@ -241,6 +255,14 @@ const MODULE_MAPPINGS: ModuleMappingRow[] = [
   {
     phase: 'PHASE3',
     phaseLabel: 'Phase 3: 外部連携・OS統合・テスト',
+    currentPsFile: 'common/GeminiCharacterHelper.ps1 / editor/CharacterLookupDialog.ps1',
+    targetVbClass: 'Services/GeminiCharacterService.vb + Forms/CharacterLookupDialog.vb',
+    project: 'PhotoTools.App',
+    notes: '6層漏洩対策（顔マスク・未設定警告・メモリ上Exif除去＆縮小・DPAPI暗号化キー・有料枠確認・キャラ名（作品名）反映）',
+  },
+  {
+    phase: 'PHASE3',
+    phaseLabel: 'Phase 3: 外部連携・OS統合・テスト',
     currentPsFile: 'common/OpenFromProtocol.ps1 / Register*.ps1',
     targetVbClass: 'Program.vb (ProtocolRouter) + Infrastructure/OsRegistrationService.vb',
     project: 'PhotoTools.App',
@@ -282,6 +304,8 @@ const SOLUTION_TREE = `PhotoTools.Net/
 │   │   │   ├── WorkflowStep5Service.vb    # Step5: 四半期長期アーカイブ & 台帳パス追従
 │   │   │   ├── MegaService.vb             # MEGAcmd 非同期実行 & 共有リンク取得
 │   │   │   ├── GigaFileService.vb         # ZipFile作成 + HttpClient ギガファイル便送信
+│   │   │   ├── MessageTemplateService.vb  # 送付定型文・リンク整形・MEGAコメント管理
+│   │   │   ├── GeminiCharacterService.vb  # DPAPIキー保護・Exif除去縮小・Geminiキャラ判定
 │   │   │   └── DiagnosticsService.vb      # 重複日付診断・台帳セルフヒーリング
 │   │   └── Infrastructure/
 │   │       ├── AppLogger.vb               # スレッドセーフ日別ログ出力
@@ -298,7 +322,9 @@ const SOLUTION_TREE = `PhotoTools.Net/
 │           ├── Step3MonitorDialog.vb      # Step3 1秒非同期監視 & 保留リスト管理
 │           ├── Step4CompareDialog.vb      # Step4 統合比較 & 一括安全削除ダイアログ
 │           ├── PhotoInfoEditorForm.vb     # 被写体プロパティ (写真情報.txt編集)
-│           ├── SettingsForm.vb            # settings.ini / JSON / OS登録 3タブ設定画面
+│           ├── CharacterLookupDialog.vb   # AIキャラ名検索 (顔マスク・6層漏洩対策)
+│           ├── MessageComposerForm.vb     # 送付メッセージ作成 (単体/まとめ・MEGA連動)
+│           ├── SettingsForm.vb            # settings.ini / JSON / OS登録 / 定型文 / AI 5タブ設定画面
 │           └── MegaProgressDialog.vb      # MEGA 処理中リアルタイムログ & キャンセル
 │
 │   └── PhotoTools.GigaFile/               # net10.0-windows 単独ギガファイル便アプリ (GigaFileUploader.exe)
@@ -354,7 +380,7 @@ export default function VbNetMigrationPlanSection({ onSelectFile }: VbNetMigrati
             </p>
           </div>
           <div className="text-xs font-mono text-slate-600 tabular-nums whitespace-nowrap shrink-0">
-            現行 23 スクリプト → Core + 2 EXE 構成
+            現行 PS 全スクリプト → Core + 2 EXE 構成
           </div>
         </div>
 
@@ -434,7 +460,7 @@ export default function VbNetMigrationPlanSection({ onSelectFile }: VbNetMigrati
                 <div>
                   <dt className="font-mono font-semibold text-slate-900">PhotoTools.Core.Tests (xUnit)</dt>
                   <dd className="text-slate-600 mt-0.5 leading-relaxed">
-                    現行 <code className="font-mono">ModuleTestCases.ps1</code> の全検証項目（9モジュール＋1日1人＋設定保存）をサンドボックスで自動実行。
+                    現行 <code className="font-mono">ModuleTestCases.ps1</code> の全検証項目（全12モジュール：01〜12）をサンドボックスで自動実行。
                   </dd>
                 </div>
               </dl>
